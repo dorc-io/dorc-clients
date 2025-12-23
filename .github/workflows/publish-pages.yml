@@ -88,11 +88,23 @@ jobs:
             fi
           done
           echo ""
+          echo "Validating _toc.yml syntax:"
+          python3 -c "
+import yaml
+with open('docs/_toc.yml') as f:
+    toc = yaml.safe_load(f)
+    print('✓ _toc.yml is valid YAML')
+    print(f'Root: {toc.get(\"root\")}')
+    print(f'Chapters: {len(toc.get(\"chapters\", []))}')
+" || echo "YAML validation failed (non-critical)"
+          
+          echo ""
           echo "Running: jupyter-book build from docs directory"
           cd docs
-          # Try jb first (newer command), fall back to jupyter-book
-          (jb build . 2>&1 || jupyter-book build . 2>&1) | tee ../build.log || {
-            echo "Build failed with exit code $?"
+          # Use explicit path to avoid confusion
+          python3 -m jupyter_book build . 2>&1 | tee ../build.log || {
+            EXIT_CODE=$?
+            echo "Build failed with exit code $EXIT_CODE"
             echo "Full build log:"
             cat ../build.log || echo "No build.log found"
             echo ""
@@ -105,13 +117,16 @@ jobs:
               find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
             echo ""
-            echo "Contents of docs/ directory:"
+            echo "Contents of current directory:"
             ls -la
             echo ""
             echo "_toc.yml contents:"
             cat _toc.yml
+            echo ""
+            echo "_config.yml contents:"
+            cat _config.yml
             cd ..
-            exit 1
+            exit $EXIT_CODE
           }
           cd ..
           echo "Build completed. Checking output..."
