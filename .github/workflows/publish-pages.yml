@@ -90,15 +90,26 @@ jobs:
           echo ""
           echo "Running: jupyter-book build from docs directory"
           cd docs
-          jupyter-book build . 2>&1 | tee ../build.log || {
+          # Try jb first (newer command), fall back to jupyter-book
+          (jb build . 2>&1 || jupyter-book build . 2>&1) | tee ../build.log || {
             echo "Build failed with exit code $?"
-            echo "Build log contents:"
+            echo "Full build log:"
             cat ../build.log || echo "No build.log found"
             echo ""
             echo "Checking for error logs:"
             if [ -d "_build/logs" ]; then
+              echo "Error log files:"
+              find _build/logs -type f
+              echo ""
+              echo "Error log contents:"
               find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
+            echo ""
+            echo "Contents of docs/ directory:"
+            ls -la
+            echo ""
+            echo "_toc.yml contents:"
+            cat _toc.yml
             cd ..
             exit 1
           }
