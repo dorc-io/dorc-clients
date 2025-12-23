@@ -88,6 +88,10 @@ jobs:
             fi
           done
           echo ""
+          echo "Cleaning any previous build artifacts..."
+          rm -rf docs/_build .jupyter-book || true
+          
+          echo ""
           echo "Running: jupyter-book build docs (from repository root)"
           # Build from root, specifying docs/ as the source directory
           jupyter-book build docs 2>&1 | tee build.log || {
