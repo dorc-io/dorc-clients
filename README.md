@@ -150,6 +150,37 @@ Tests use mocked HTTP responses - no real network calls.
 - **No infrastructure**: No Terraform, no deployment configs
 - **No engine code**: This repo only contains client code
 
+## Publishing
+
+This repository automatically publishes a JupyterBook to GitHub Pages on every push to `main`.
+
+### How It Works
+
+- The GitHub Actions workflow (`.github/workflows/publish-pages.yml`) builds the JupyterBook from the `docs/` directory
+- On push to `main`, the workflow:
+  1. Validates that `docs/_config.yml` and `docs/_toc.yml` exist
+  2. Builds the JupyterBook using `jupyter-book build docs`
+  3. Deploys the built HTML to GitHub Pages
+
+### Enabling GitHub Pages
+
+To enable GitHub Pages for this repository:
+
+1. Go to **Settings** → **Pages**
+2. Under **Source**, select **GitHub Actions**
+3. The workflow will automatically deploy on the next push to `main`
+
+### Preview Locally
+
+To preview the JupyterBook locally before pushing:
+
+```bash
+pip install jupyter-book
+jupyter-book build docs
+```
+
+Then open `docs/_build/html/index.html` in your browser.
+
 ## License
 
 Apache-2.0 - See [LICENSE](LICENSE) file.
