@@ -53,6 +53,9 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+markers = [
+    "integration: marks tests as integration tests (requires real service)",
+]
 
 [tool.ruff]
 line-length = 100
