@@ -92,58 +92,50 @@ jobs:
           rm -rf docs/_build .jupyter-book || true
           
           echo ""
-          echo "Changing to docs directory and building from there..."
-          cd docs
-          echo "Current directory: $(pwd)"
-          echo "Files in current directory:"
-          ls -la
-          echo ""
-          echo "Verifying all referenced files exist:"
+          echo "Verifying all referenced files exist in docs/:"
           echo "Checking README.md (root):"
-          [ -f "README.md" ] && echo "✓ README.md exists" || { echo "✗ README.md MISSING"; exit 1; }
+          [ -f "docs/README.md" ] && echo "✓ docs/README.md exists" || { echo "✗ docs/README.md MISSING"; exit 1; }
           echo "Checking notebooks-README.md:"
-          [ -f "notebooks-README.md" ] && echo "✓ notebooks-README.md exists" || { echo "✗ notebooks-README.md MISSING"; exit 1; }
+          [ -f "docs/notebooks-README.md" ] && echo "✓ docs/notebooks-README.md exists" || { echo "✗ docs/notebooks-README.md MISSING"; exit 1; }
           for nb in 00_quickstart 01_create_and_validate_cce 02_review_and_rectify_loop 03_export_jsonl_for_rag; do
-            if [ -f "${nb}.ipynb" ]; then
-              echo "✓ ${nb}.ipynb exists"
+            if [ -f "docs/${nb}.ipynb" ]; then
+              echo "✓ docs/${nb}.ipynb exists"
             else
-              echo "✗ ${nb}.ipynb MISSING"
+              echo "✗ docs/${nb}.ipynb MISSING"
               exit 1
             fi
           done
           echo ""
           echo "Verifying _toc.yml structure:"
-          cat _toc.yml
+          cat docs/_toc.yml
           echo ""
-          echo "Running: jupyter-book build ."
-          # Build from within docs directory
-          jupyter-book build . 2>&1 | tee ../build.log || {
+          echo "Running: jupyter-book build docs (from repository root)"
+          # Build from repository root, specifying docs/ directory
+          jupyter-book build docs 2>&1 | tee build.log || {
             EXIT_CODE=$?
             echo "Build failed with exit code $EXIT_CODE"
             echo "Full build log:"
-            cat ../build.log || echo "No build.log found"
+            cat build.log || echo "No build.log found"
             echo ""
             echo "Checking for error logs:"
-            if [ -d "_build/logs" ]; then
+            if [ -d "docs/_build/logs" ]; then
               echo "Error log files:"
-              find _build/logs -type f
+              find docs/_build/logs -type f
               echo ""
               echo "Error log contents:"
-              find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
+              find docs/_build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
             echo ""
-            echo "Contents of current directory:"
-            ls -la
+            echo "Contents of docs/ directory:"
+            ls -la docs/
             echo ""
-            echo "_toc.yml contents:"
-            cat _toc.yml
+            echo "docs/_toc.yml contents:"
+            cat docs/_toc.yml
             echo ""
-            echo "_config.yml contents:"
-            cat _config.yml
-            cd ..
+            echo "docs/_config.yml contents:"
+            cat docs/_config.yml
             exit $EXIT_CODE
           }
-          cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
           if [ -d "docs/_build/html" ]; then

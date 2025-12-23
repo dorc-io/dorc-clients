@@ -33,5 +33,5 @@ sphinx:
       use_edit_page_button: true
       use_issues_button: true
     # Explicitly set the source directory
-    master_doc: README
+    master_doc: README.md
 
