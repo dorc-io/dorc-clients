@@ -30,7 +30,10 @@ def client(config):
 
 def _with_transport(client: DorcClient, handler):
     client._client.close()
-    client._client = httpx.Client(base_url=client.config.base_url, transport=httpx.MockTransport(handler))  # type: ignore[attr-defined]
+    client._client = httpx.Client(  # type: ignore[attr-defined]
+        base_url=client.config.base_url,
+        transport=httpx.MockTransport(handler),
+    )
 
 
 def test_health_success(client):
@@ -117,7 +120,10 @@ def test_get_run_not_found(client):
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
         assert str(request.url) == "https://test-engine.run.app/v1/runs/nonexistent"
-        return httpx.Response(status_code=404, json={"error": {"code": "NOT_FOUND", "message": "run not found"}})
+        return httpx.Response(
+            status_code=404,
+            json={"error": {"code": "NOT_FOUND", "message": "run not found"}},
+        )
 
     _with_transport(client, handler)
     

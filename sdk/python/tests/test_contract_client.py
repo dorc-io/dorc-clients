@@ -1,3 +1,6 @@
+import json
+
+import httpx
 import pytest
 
 from dorc_client import DorcClient
@@ -6,8 +9,6 @@ from dorc_client.errors import DorcError
 
 def test_mcp_client_builds_contract_body_and_auth(monkeypatch: pytest.MonkeyPatch):
     c = DorcClient.for_mcp("https://mcp.example", jwt_token="t")
-    import httpx
-    import json
 
     seen = {}
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,12 +15,12 @@ TENANT_SLUG_REGEX = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 class Candidate(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    cce_id: Optional[str] = None
-    title: Optional[str] = None
+    cce_id: str | None = None
+    title: str | None = None
     content: str = Field(..., min_length=1)
     content_type: Literal["text/markdown"] = "text/markdown"
-    source: Optional[str] = None
-    labels: Optional[Dict[str, str]] = None
+    source: str | None = None
+    labels: dict[str, str] | None = None
 
 
 class ChunkingOptions(BaseModel):
@@ -33,8 +33,8 @@ class ChunkingOptions(BaseModel):
 class ModelsOptions(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    primary: Optional[str] = None
-    fallback: Optional[str] = None
+    primary: str | None = None
+    fallback: str | None = None
 
 
 class ValidateOptions(BaseModel):
@@ -47,7 +47,7 @@ class ValidateOptions(BaseModel):
 class ValidateRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    request_id: Optional[str] = None
+    request_id: str | None = None
     mode: Literal["audit", "smoke", "rectify"] = "audit"
     candidate: Candidate
     options: ValidateOptions = Field(default_factory=ValidateOptions)

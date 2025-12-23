@@ -33,8 +33,10 @@ class Config:
             token = (os.getenv("DORC_JWT") or os.getenv("DORC_TOKEN") or "").strip() or None
             if not token:
                 raise DorcConfigError(
-                    "Missing JWT token for MCP mode. Set DORC_JWT (or DORC_TOKEN) to a Bearer token "
-                    "issued by your OIDC provider."
+                    
+                        "Missing JWT token for MCP mode. Set DORC_JWT (or DORC_TOKEN) "
+                        "to a Bearer token issued by your OIDC provider."
+                    
                 )
             return cls(base_url=mcp_url, mode="mcp", jwt_token=token)
 
@@ -42,15 +44,19 @@ class Config:
         base_url = os.getenv("DORC_BASE_URL") or os.getenv("DORC_ENGINE_URL")
         if not base_url:
             raise DorcConfigError(
-                "Missing base URL. Set DORC_MCP_URL for MCP (recommended) or set DORC_BASE_URL to your "
-                "dorc-engine URL (example: https://dorc-engine-xxxxx.us-east1.run.app)."
+                
+                    "Missing base URL. Set DORC_MCP_URL for MCP (recommended) or set "
+                    "DORC_BASE_URL to your dorc-engine URL "
+                    "(example: https://dorc-engine-xxxxx.us-east1.run.app)."
+                
             )
         base_url = base_url.rstrip("/")
 
         tenant_slug = (os.getenv("DORC_TENANT_SLUG") or "").strip() or None
         if not tenant_slug:
             raise DorcConfigError(
-                "Missing DORC_TENANT_SLUG for engine-direct mode (tenant is required for direct engine calls)."
+                "Missing DORC_TENANT_SLUG for engine-direct mode "
+                "(tenant is required for direct engine calls)."
             )
 
         api_key = (os.getenv("DORC_API_KEY") or "").strip() or None

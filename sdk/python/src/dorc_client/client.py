@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import re
 import time
 import warnings
-from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 from tenacity import (
@@ -18,6 +19,7 @@ from .auth import api_key_headers, bearer_headers
 from .config import Config
 from .errors import DorcAuthError, DorcError
 from .models import (
+    TENANT_SLUG_REGEX,
     Candidate,
     ChunkResult,
     ChunkResultsResponse,
@@ -26,9 +28,6 @@ from .models import (
     ValidateRequest,
     ValidateResponse,
 )
-from .models import TENANT_SLUG_REGEX
-
-import re
 
 _TENANT_RE = re.compile(TENANT_SLUG_REGEX)
 
@@ -78,10 +77,20 @@ class DorcClient:
             else:
                 # Back-compat: specifying tenant_slug implies engine-direct mode.
                 if tenant_slug is not None:
-                    config = Config(base_url=(base_url or "").rstrip("/"), mode="engine", tenant_slug=tenant_slug, api_key=api_key)
+                    config = Config(
+                        base_url=(base_url or "").rstrip("/"),
+                        mode="engine",
+                        tenant_slug=tenant_slug,
+                        api_key=api_key,
+                    )
                 else:
                     # MCP mode: tenant derived by MCP from JWT.
-                    config = Config(base_url=(base_url or "").rstrip("/"), mode="mcp", jwt_token=jwt_token, api_key=api_key)
+                    config = Config(
+                        base_url=(base_url or "").rstrip("/"),
+                        mode="mcp",
+                        jwt_token=jwt_token,
+                        api_key=api_key,
+                    )
 
         self.config = config
         self._token_provider = token_provider
@@ -113,8 +122,17 @@ class DorcClient:
     ) -> DorcClient:
         if (jwt_token is None or not jwt_token.strip()) and token_provider is None:
             raise ValueError("for_mcp requires jwt_token=... or token_provider=...")
-        cfg = Config(base_url=base_url.rstrip("/"), mode="mcp", jwt_token=(jwt_token.strip() if jwt_token else None))
-        return cls(config=cfg, token_provider=token_provider, timeout_s=timeout_s, validate_timeout_s=validate_timeout_s)
+        cfg = Config(
+            base_url=base_url.rstrip("/"),
+            mode="mcp",
+            jwt_token=(jwt_token.strip() if jwt_token else None),
+        )
+        return cls(
+            config=cfg,
+            token_provider=token_provider,
+            timeout_s=timeout_s,
+            validate_timeout_s=validate_timeout_s,
+        )
 
     @classmethod
     def for_engine(
@@ -129,7 +147,12 @@ class DorcClient:
         tenant_slug = tenant_slug.strip()
         if not _TENANT_RE.fullmatch(tenant_slug):
             raise ValueError(f"invalid tenant_slug (must match {TENANT_SLUG_REGEX})")
-        cfg = Config(base_url=base_url.rstrip("/"), mode="engine", tenant_slug=tenant_slug, api_key=api_key)
+        cfg = Config(
+            base_url=base_url.rstrip("/"),
+            mode="engine",
+            tenant_slug=tenant_slug,
+            api_key=api_key,
+        )
         return cls(config=cfg, timeout_s=timeout_s, validate_timeout_s=validate_timeout_s)
 
     def _auth_headers(self) -> dict[str, str]:
@@ -167,9 +190,21 @@ class DorcClient:
             pass
 
         if resp.status_code in (401, 403):
-            raise DorcAuthError(resp.status_code, code=code, message=message, request_id=request_id, response_text=text)
+            raise DorcAuthError(
+                resp.status_code,
+                code=code,
+                message=message,
+                request_id=request_id,
+                response_text=text,
+            )
 
-        raise DorcError(resp.status_code, code=code, message=message, request_id=request_id, response_text=text)
+        raise DorcError(
+            resp.status_code,
+            code=code,
+            message=message,
+            request_id=request_id,
+            response_text=text,
+        )
 
     @_retry_get()
     def _get(self, path: str) -> httpx.Response:
@@ -213,12 +248,17 @@ class DorcClient:
     ) -> ValidateResponse:
         """POST /v1/validate (contract-native).
 
-        In MCP mode, tenant is derived by MCP from the JWT. In engine-direct mode, tenant is required.
+        In MCP mode, tenant is derived by MCP from the JWT.
+        In engine-direct mode, tenant is required.
         """
-        # Deprecation adapter: old callers used content=/candidate_text= and candidate_id/title/context.
+        # Deprecation adapter: old callers used content=/candidate_text=
+        # and candidate_id/title/context.
         if candidate_content is None and (content is not None or candidate_text is not None):
             warnings.warn(
-                "validate(content=...)/validate(candidate_text=...) is deprecated; use validate(candidate_content=...).",
+                (
+                    "validate(content=...)/validate(candidate_text=...) is deprecated; "
+                    "use validate(candidate_content=...)."
+                ),
                 DeprecationWarning,
                 stacklevel=2,
             )
