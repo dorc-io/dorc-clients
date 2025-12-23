@@ -109,33 +109,48 @@ jobs:
           echo "Verifying _toc.yml structure:"
           cat docs/_toc.yml
           echo ""
-          echo "Running: jupyter-book build docs"
-          # Build from repository root, specifying docs/ directory
-          jupyter-book build docs 2>&1 | tee build.log || {
-            EXIT_CODE=$?
-            echo "Build failed with exit code $EXIT_CODE"
-            echo "Full build log:"
-            cat build.log || echo "No build.log found"
+          echo "Checking JupyterBook installation and trying alternative approaches:"
+          python3 -c "import jupyter_book; print(f'JupyterBook version: {jupyter_book.__version__}')" || echo "Could not import jupyter_book"
+          echo ""
+          echo "Attempting build from docs directory..."
+          cd docs
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "Attempt 1: jupyter-book build ."
+          jupyter-book build . 2>&1 | tee ../build.log
+          BUILD_EXIT=$?
+          
+          if [ $BUILD_EXIT -ne 0 ] || [ ! -d "_build/html" ]; then
             echo ""
-            echo "Checking for error logs:"
-            if [ -d "docs/_build/logs" ]; then
-              echo "Error log files:"
-              find docs/_build/logs -type f
-              echo ""
-              echo "Error log contents:"
-              find docs/_build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
+            echo "Attempt 1 failed. Checking error details..."
+            if [ -d "_build/logs" ]; then
+              echo "Error logs found:"
+              find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
             echo ""
-            echo "Contents of docs/ directory:"
-            ls -la docs/
+            echo "Attempt 2: Using python -m jupyter_book"
+            python3 -m jupyter_book build . 2>&1 | tee -a ../build.log
+            BUILD_EXIT=$?
+          fi
+          
+          if [ $BUILD_EXIT -ne 0 ] || [ ! -d "_build/html" ]; then
             echo ""
-            echo "docs/_toc.yml contents:"
-            cat docs/_toc.yml
+            echo "Both attempts failed. Full error details:"
+            cat ../build.log
             echo ""
-            echo "docs/_config.yml contents:"
-            cat docs/_config.yml
-            exit $EXIT_CODE
-          }
+            echo "Directory structure:"
+            ls -la
+            echo ""
+            echo "Checking if _toc.yml is valid YAML:"
+            python3 -c "import yaml; yaml.safe_load(open('_toc.yml')); print('✓ _toc.yml is valid YAML')"
+            echo ""
+            echo "Checking if _config.yml is valid YAML:"
+            python3 -c "import yaml; yaml.safe_load(open('_config.yml')); print('✓ _config.yml is valid YAML')"
+            cd ..
+            exit 1
+          fi
+          
+          cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
           if [ -d "docs/_build/html" ]; then
