@@ -3,11 +3,11 @@
 import os
 from unittest.mock import patch
 
+import httpx
 import pytest
-import pytest_httpx
 
 from dorc_client import Config, DorcClient
-from dorc_client.errors import DorcConfigError, DorcHttpError
+from dorc_client.errors import DorcConfigError, DorcError
 from dorc_client.models import ChunkResult, RunStateResponse, ValidateResponse
 
 
@@ -24,82 +24,66 @@ def config():
 @pytest.fixture
 def client(config):
     """Create a test client."""
-    return DorcClient(config=config)
+    c = DorcClient(config=config)
+    return c
 
 
-def test_health_success(client, httpx_mock: pytest_httpx.HTTPXMock):
+def _with_transport(client: DorcClient, handler):
+    client._client.close()
+    client._client = httpx.Client(base_url=client.config.base_url, transport=httpx.MockTransport(handler))  # type: ignore[attr-defined]
+
+
+def test_health_success(client):
     """Test successful health check."""
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/healthz",
-        status_code=200,
-    )
-    
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == "https://test-engine.run.app/healthz"
+        return httpx.Response(status_code=200)
+
+    _with_transport(client, handler)
     assert client.health() is True
 
 
-def test_health_failure(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_health_failure(client):
     """Test failed health check."""
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/healthz",
-        status_code=500,
-        is_reusable=True,
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/health",
-        status_code=500,
-        is_reusable=True,
-    )
-    
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url).endswith("/healthz"):
+            return httpx.Response(status_code=500)
+        if str(request.url).endswith("/health"):
+            return httpx.Response(status_code=500)
+        return httpx.Response(status_code=404)
+
+    _with_transport(client, handler)
     assert client.health() is False
 
 
-def test_validate_success(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_validate_success(client):
     """Test successful validation request."""
     mock_response = {
+        "request_id": "req-test-1",
         "run_id": "run-test-123",
-        "tenant_slug": "test-tenant",
-        "pipeline_status": "COMPLETE",
-        "content_summary": {
-            "pass": 2,
-            "fail": 0,
-            "warn": 0,
-            "error": 0,
-        },
-        "chunks": [
-            {
-                "chunk_id": "ch-0-abc",
-                "index": 0,
-                "status": "PASS",
-                "model_used": "gemini-2.5-pro",
-                "finding_count": 0,
-                "message": "No contradictions found",
-                "evidence": [],
-                "details": None,
-            }
-        ],
+        "status": "COMPLETE",
+        "result": "PASS",
+        "counts": {"PASS": 1, "FAIL": 0, "WARN": 0, "ERROR": 0, "total_chunks": 1},
+        "links": {"run": "/v1/runs/run-test-123", "chunks": "/v1/runs/run-test-123/chunks"},
     }
-    
-    httpx_mock.add_response(
-        method="POST",
-        url="https://test-engine.run.app/v1/validate",
-        json=mock_response,
-        status_code=200,
-    )
-    
-    response = client.validate(content="Test content")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert str(request.url) == "https://test-engine.run.app/v1/validate"
+        return httpx.Response(status_code=200, json=mock_response)
+
+    _with_transport(client, handler)
+    response = client.validate(candidate_content="Test content")
     
     assert isinstance(response, ValidateResponse)
     assert response.run_id == "run-test-123"
-    assert response.pipeline_status == "COMPLETE"
-    assert response.content_summary.pass_ == 2
-    assert len(response.chunks) == 1
-    assert response.chunks[0].status == "PASS"
+    assert response.status == "COMPLETE"
+    assert response.result == "PASS"
+    assert response.counts.pass_ == 1
 
 
-def test_get_run_success(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_get_run_success(client):
     """Test successful get_run request."""
     mock_response = {
         "run_id": "run-test-123",
@@ -114,14 +98,13 @@ def test_get_run_success(client, httpx_mock: pytest_httpx.HTTPXMock):
         "inserted_at": "2024-01-15T10:30:00Z",
         "meta": {},
     }
-    
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/v1/runs/run-test-123",
-        json=mock_response,
-        status_code=200,
-    )
-    
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == "https://test-engine.run.app/v1/runs/run-test-123"
+        return httpx.Response(status_code=200, json=mock_response)
+
+    _with_transport(client, handler)
     response = client.get_run("run-test-123")
     
     assert isinstance(response, RunStateResponse)
@@ -129,20 +112,20 @@ def test_get_run_success(client, httpx_mock: pytest_httpx.HTTPXMock):
     assert response.pipeline_status == "COMPLETE"
 
 
-def test_get_run_not_found(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_get_run_not_found(client):
     """Test get_run with 404 error."""
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/v1/runs/nonexistent",
-        status_code=404,
-        json={"detail": "run not found"},
-    )
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == "https://test-engine.run.app/v1/runs/nonexistent"
+        return httpx.Response(status_code=404, json={"error": {"code": "NOT_FOUND", "message": "run not found"}})
+
+    _with_transport(client, handler)
     
-    with pytest.raises(DorcHttpError):
+    with pytest.raises(DorcError):
         client.get_run("nonexistent")
 
 
-def test_list_chunks_success(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_list_chunks_success(client):
     """Test successful list_chunks request."""
     mock_response = {
         "run_id": "run-test-123",
@@ -176,14 +159,13 @@ def test_list_chunks_success(client, httpx_mock: pytest_httpx.HTTPXMock):
             },
         ],
     }
-    
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/v1/runs/run-test-123/chunks",
-        json=mock_response,
-        status_code=200,
-    )
-    
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "GET"
+        assert str(request.url) == "https://test-engine.run.app/v1/runs/run-test-123/chunks"
+        return httpx.Response(status_code=200, json=mock_response)
+
+    _with_transport(client, handler)
     chunks = client.list_chunks("run-test-123")
     
     assert len(chunks) == 2
@@ -196,7 +178,7 @@ def test_list_chunks_success(client, httpx_mock: pytest_httpx.HTTPXMock):
 def test_config_from_env_missing_url():
     """Test Config.from_env raises error when base URL is missing."""
     with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(Exception, match="DORC_BASE_URL|DORC_ENGINE_URL"):
+        with pytest.raises(Exception, match="DORC_MCP_URL|DORC_BASE_URL|DORC_ENGINE_URL"):
             Config.from_env()
 
 
@@ -252,25 +234,20 @@ def test_config_strips_trailing_slash():
         assert config.base_url == "https://test.run.app"
 
 
-def test_client_with_auth(config, httpx_mock: pytest_httpx.HTTPXMock):
+def test_client_with_auth(config):
     """Test client sends auth header when API key is set."""
     config_with_key = Config(
         base_url=config.base_url,
+        mode="engine",
         tenant_slug=config.tenant_slug,
         api_key="test-key-123",
     )
     client = DorcClient(config=config_with_key)
-    
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test-engine.run.app/healthz",
-        status_code=200,
-    )
-    
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers.get("X-API-Key") == "test-key-123"
+        return httpx.Response(status_code=200)
+
+    _with_transport(client, handler)
     client.health()
-    
-    # Verify the request included the auth header
-    request = httpx_mock.get_request()
-    assert request is not None
-    assert request.headers.get("X-API-Key") == "test-key-123"
 

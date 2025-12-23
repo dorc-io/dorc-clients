@@ -9,3 +9,9 @@ def api_key_headers(api_key: str | None) -> dict[str, str]:
     return {"X-API-Key": api_key}
 
 
+def bearer_headers(token: str | None) -> dict[str, str]:
+    if not token:
+        return {}
+    return {"Authorization": f"Bearer {token}"}
+
+

@@ -1,6 +1,6 @@
 # dorc-clients
 
-Open-source client libraries and tools for interacting with the `dorc-engine` HTTP API.
+Open-source client libraries and tools for interacting with DORC via the **contract** APIs.
 
 This repository contains:
 - **Python SDK** - Clean HTTP client for calling dorc-engine
@@ -33,8 +33,8 @@ import os
 from dorc_client import DorcClient
 
 # Set environment variables
-os.environ["DORC_BASE_URL"] = "https://your-engine-url.run.app"
-os.environ["DORC_TENANT_SLUG"] = "my-tenant"
+os.environ["DORC_MCP_URL"] = "https://your-mcp-url.run.app"
+os.environ["DORC_JWT"] = "<your oidc jwt>"
 
 # Create client
 client = DorcClient()
@@ -45,33 +45,28 @@ if client.health():
 
 # Validate content
 response = client.validate(
-    content="# My Document\n\nContent here...",
-    candidate_id="my-candidate-001",
+    candidate_content="# My Document\n\nContent here...",
 )
 
 print(f"Run ID: {response.run_id}")
-print(f"Status: {response.pipeline_status}")
-print(f"Summary: {response.content_summary}")
+print(f"Result: {response.result}")
+print(f"Counts: {response.counts}")
 ```
 
 ## Environment Variables
 
 ### Required
 
-- **`DORC_BASE_URL`** - Base URL of the dorc-engine Cloud Run service
-  - Example: `https://dorc-engine-1092170595100.us-east1.run.app`
+- **`DORC_MCP_URL`** - Base URL of the dorc-mcp Cloud Run service (recommended)
+  - Example: `https://dorc-mcp-xxxxx.us-east1.run.app`
   - No trailing slash
-  - Back-compat: `DORC_ENGINE_URL` is still accepted but deprecated
+- **`DORC_JWT`** (or `DORC_TOKEN`) - JWT bearer token to send to MCP
 
-- **`DORC_TENANT_SLUG`** - Tenant identifier for all requests
-  - Example: `my-tenant`, `research-team`, `hyperfocus`
-  - Must be 1-80 characters
+### Engine-direct (advanced / explicit)
 
-### Optional
-
-- **`DORC_API_KEY`** - API key for authentication (if required)
-  - If set, sends `X-API-Key: <key>` header
-  - If not set, no auth header is sent
+- `DORC_BASE_URL` (or legacy `DORC_ENGINE_URL`)
+- `DORC_TENANT_SLUG`
+- `DORC_API_KEY` (engine requires `X-API-Key` for `/v1/*`)
 
 ## Repository Structure
 

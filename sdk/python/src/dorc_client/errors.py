@@ -12,18 +12,25 @@ class DorcConfigError(DorcClientError):
 
 
 @dataclass
-class DorcHttpError(DorcClientError):
-    """HTTP-layer error returned by the dorc-engine service."""
+class DorcError(DorcClientError):
+    """Normalized contract error (or best-effort fallback)."""
 
     status_code: int
+    code: str
     message: str
+    request_id: str | None = None
     response_text: str | None = None
 
     def __str__(self) -> str:
-        return f"HTTP {self.status_code}: {self.message}"
+        rid = f" request_id={self.request_id}" if self.request_id else ""
+        return f"HTTP {self.status_code} {self.code}:{rid} {self.message}"
 
 
-class DorcAuthError(DorcHttpError):
+class DorcHttpError(DorcError):
+    """Legacy alias name for HTTP errors (kept for backwards compatibility)."""
+
+
+class DorcAuthError(DorcError):
     """Authentication/authorization failure (401/403)."""
 
 

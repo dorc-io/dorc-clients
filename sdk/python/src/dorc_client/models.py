@@ -1,31 +1,55 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 ValidationStatus = Literal["PASS", "FAIL", "WARN", "ERROR"]
 PipelineStatus = Literal["COMPLETE", "ERROR"]
+RunStatus = Literal["RUNNING", "COMPLETE"]
+RunResult = Literal["PASS", "FAIL", "WARN", "ERROR"]
+
+TENANT_SLUG_REGEX = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+
+
+class Candidate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    cce_id: Optional[str] = None
+    title: Optional[str] = None
+    content: str = Field(..., min_length=1)
+    content_type: Literal["text/markdown"] = "text/markdown"
+    source: Optional[str] = None
+    labels: Optional[Dict[str, str]] = None
+
+
+class ChunkingOptions(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    max_chars: int = Field(3500, ge=1)
+    overlap_chars: int = Field(250, ge=0)
+
+
+class ModelsOptions(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    primary: Optional[str] = None
+    fallback: Optional[str] = None
 
 
 class ValidateOptions(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    mode: Literal["audit"] = "audit"
-    chunk_size_chars: int = 8000
-    overlap_chars: int = 400
-    resume: bool = True
+    chunking: ChunkingOptions = Field(default_factory=ChunkingOptions)
+    models: ModelsOptions = Field(default_factory=ModelsOptions)
 
 
 class ValidateRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    tenant_slug: str = Field(..., min_length=1, max_length=80)
-    candidate_id: str | None = Field(default=None, max_length=120)
-    candidate_title: str | None = Field(default=None, max_length=200)
-    content_type: Literal["markdown"] = "markdown"
-    content: str = Field(..., min_length=1)
-    context: dict[str, Any] | None = None
+    request_id: Optional[str] = None
+    mode: Literal["audit", "smoke", "rectify"] = "audit"
+    candidate: Candidate
     options: ValidateOptions = Field(default_factory=ValidateOptions)
 
 
@@ -59,14 +83,33 @@ class ContentSummary(BaseModel):
     error: int = 0
 
 
+class Counts(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    # Accept contract JSON keys (PASS/FAIL/WARN/ERROR) but expose pythonic attributes.
+    pass_: int = Field(0, alias="PASS")
+    fail: int = Field(0, alias="FAIL")
+    warn: int = Field(0, alias="WARN")
+    error: int = Field(0, alias="ERROR")
+    total_chunks: int = 0
+
+
+class Links(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    run: str
+    chunks: str
+
+
 class ValidateResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
+    request_id: str
     run_id: str
-    tenant_slug: str
-    pipeline_status: PipelineStatus
-    content_summary: ContentSummary
-    chunks: list[ChunkResult]
+    status: RunStatus
+    result: RunResult
+    counts: Counts
+    links: Links
 
 
 class RunStateResponse(BaseModel):
