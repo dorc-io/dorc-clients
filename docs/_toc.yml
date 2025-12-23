@@ -2,8 +2,8 @@
 # See https://jupyterbook.org/en/stable/structure/toc.html
 
 format: jb-book
-root: README.md
 chapters:
+  - file: README.md
   - file: notebooks-README.md
   - title: Notebooks
     chapters:

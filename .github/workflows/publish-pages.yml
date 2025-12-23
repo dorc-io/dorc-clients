@@ -109,7 +109,7 @@ jobs:
           echo "Verifying _toc.yml structure:"
           cat docs/_toc.yml
           echo ""
-          echo "Running: jupyter-book build docs (from repository root)"
+          echo "Running: jupyter-book build docs"
           # Build from repository root, specifying docs/ directory
           jupyter-book build docs 2>&1 | tee build.log || {
             EXIT_CODE=$?
