@@ -56,7 +56,21 @@ jobs:
 
       - name: Build JupyterBook
         run: |
+          set -e
           jupyter-book build docs
+          echo "Build completed. Checking output..."
+          ls -la docs/_build/ || echo "No _build directory found"
+          ls -la docs/_build/html/ || echo "No html directory found"
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "docs/_build/html" ]; then
+            echo "Error: docs/_build/html directory does not exist"
+            echo "Contents of docs/_build:"
+            ls -la docs/_build/ || echo "docs/_build does not exist"
+            exit 1
+          fi
+          echo "✓ Build output verified at docs/_build/html"
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
