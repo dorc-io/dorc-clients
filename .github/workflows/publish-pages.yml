@@ -87,20 +87,17 @@ jobs:
           done
           echo ""
           echo "Running: jupyter-book build docs"
-          cd docs
-          jupyter-book build . 2>&1 | tee build.log || {
+          jupyter-book build docs 2>&1 | tee build.log || {
             echo "Build failed with exit code $?"
             echo "Build log contents:"
             cat build.log || echo "No build.log found"
             echo ""
             echo "Checking for error logs:"
-            if [ -d "_build/logs" ]; then
-              find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
+            if [ -d "docs/_build/logs" ]; then
+              find docs/_build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
-            cd ..
             exit 1
           }
-          cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
           if [ -d "docs/_build/html" ]; then
