@@ -51,8 +51,10 @@ jobs:
       - name: Copy notebooks to docs
         run: |
           # Copy notebooks into docs directory for JupyterBook
-          cp -r notebooks/*.ipynb docs/ || true
-          cp notebooks/README.md docs/notebooks-README.md || true
+          cp notebooks/*.ipynb docs/ 2>/dev/null || true
+          cp notebooks/README.md docs/notebooks-README.md 2>/dev/null || true
+          echo "Copied files to docs/:"
+          ls -la docs/*.ipynb docs/*.md 2>/dev/null || echo "No files found"
 
       - name: Build JupyterBook
         run: |
