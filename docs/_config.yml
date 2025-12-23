@@ -4,6 +4,13 @@
 title: dorc-clients Documentation
 author: DORC Team
 
+# Exclude patterns to prevent processing unintended directories
+exclude_patterns:
+  - "_build/**"
+  - ".venv/**"
+  - "**/.ipynb_checkpoints/**"
+  - "**/__pycache__/**"
+
 # Execute notebooks before building
 execute:
   execute_notebooks: "off"  # Set to "auto" to execute notebooks
@@ -25,4 +32,6 @@ sphinx:
       use_repository_button: true
       use_edit_page_button: true
       use_issues_button: true
+    # Explicitly set the source directory
+    master_doc: README
 

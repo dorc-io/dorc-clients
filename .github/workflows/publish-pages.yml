@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install jupyter-book
+          pip install jupyter-book pyyaml
           echo "JupyterBook version:"
           jupyter-book --version || jb --version || echo "Version check failed"
 
@@ -88,36 +88,33 @@ jobs:
             fi
           done
           echo ""
-          echo "Running: jupyter-book build from docs directory"
-          cd docs
-          # Use explicit path to avoid confusion
-          jupyter-book build . 2>&1 | tee ../build.log || {
+          echo "Running: jupyter-book build docs (from repository root)"
+          # Build from root, specifying docs/ as the source directory
+          jupyter-book build docs 2>&1 | tee build.log || {
             EXIT_CODE=$?
             echo "Build failed with exit code $EXIT_CODE"
             echo "Full build log:"
-            cat ../build.log || echo "No build.log found"
+            cat build.log || echo "No build.log found"
             echo ""
             echo "Checking for error logs:"
-            if [ -d "_build/logs" ]; then
+            if [ -d "docs/_build/logs" ]; then
               echo "Error log files:"
-              find _build/logs -type f
+              find docs/_build/logs -type f
               echo ""
               echo "Error log contents:"
-              find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
+              find docs/_build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
             echo ""
-            echo "Contents of current directory:"
-            ls -la
+            echo "Contents of docs/ directory:"
+            ls -la docs/
             echo ""
-            echo "_toc.yml contents:"
-            cat _toc.yml
+            echo "docs/_toc.yml contents:"
+            cat docs/_toc.yml
             echo ""
-            echo "_config.yml contents:"
-            cat _config.yml
-            cd ..
+            echo "docs/_config.yml contents:"
+            cat docs/_config.yml
             exit $EXIT_CODE
           }
-          cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
           if [ -d "docs/_build/html" ]; then
