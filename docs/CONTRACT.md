@@ -70,7 +70,7 @@ The authentication mechanism MUST be compatible with:
 This implies:
 - no OAuth
 - no OIDC
-- no Google IAM
+- no Google I A M
 - no interactive authentication
 
 Tokens MUST be static strings that can be injected into HTTP headers.
@@ -129,7 +129,7 @@ Health endpoints MUST NOT require authentication.
 The system explicitly does NOT support:
 - OAuth 2.0
 - OpenID Connect
-- Google IAM
+- Google I A M
 - user login sessions
 - refresh tokens
 
