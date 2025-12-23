@@ -53,36 +53,33 @@ def _retry_get():
 
 
 class DorcClient:
-    """Python SDK for DORC (MCP mode with JWT auth).
+    """Python SDK for DORC capability-based authentication.
 
-    Primary mode is MCP (JWT). Engine-direct mode is legacy.
+    Accepts a Bearer token (API key or JWT) and forwards it to MCP.
+    The SDK does NOT generate tokens - tokens must be provided by the caller.
     """
 
     def __init__(
         self,
         *,
         base_url: str | None = None,
-        jwt_token: str | None = None,
-        engine_api_key: str | None = None,
-        token_provider: Callable[[], str] | None = None,
+        token: str | None = None,
         timeout_s: float = 30.0,
         validate_timeout_s: float = 300.0,
         config: Config | None = None,
     ):
         if config is None:
-            if base_url is None and jwt_token is None:
+            if base_url is None and token is None:
                 config = Config.from_env()
             else:
-                # MCP mode: tenant derived by MCP from JWT.
+                # MCP mode: token is a Bearer token (API key or JWT)
                 config = Config(
                     base_url=(base_url or "").rstrip("/"),
                     mode="mcp",
-                    jwt_token=jwt_token,
-                    engine_api_key=engine_api_key,
+                    token=token,
                 )
 
         self.config = config
-        self._token_provider = token_provider
         self._timeout = httpx.Timeout(timeout_s)
         self._validate_timeout = httpx.Timeout(validate_timeout_s)
         self._client = httpx.Client(
@@ -90,23 +87,20 @@ class DorcClient:
             headers={},  # auth headers are per-request
         )
 
-    def _require_jwt(self) -> str:
-        """Get JWT token, raising clear error if missing."""
+    def _require_token(self) -> str:
+        """Get Bearer token, raising clear error if missing."""
         if self.config.mode != "mcp":
             raise DorcError(
                 status_code=500,
                 code="CONFIG_ERROR",
-                message="JWT is only required in MCP mode",
+                message="Token is only required in MCP mode",
             )
-        token = None
-        if self._token_provider is not None:
-            token = self._token_provider()
-        token = (token or self.config.jwt_token or "").strip() or None
+        token = (self.config.token or "").strip() or None
         if not token:
             raise DorcAuthError(
                 status_code=401,
                 code="UNAUTHENTICATED",
-                message="JWT token is required. Set jwt_token parameter or DORC_JWT environment variable.",
+                message="Bearer token is required. Set token parameter or DORC_TOKEN environment variable.",
             )
         return token
 
@@ -124,31 +118,25 @@ class DorcClient:
         cls,
         base_url: str,
         *,
-        jwt_token: str | None = None,
-        engine_api_key: str | None = None,
-        token_provider: Callable[[], str] | None = None,
+        token: str,
         timeout_s: float = 30.0,
         validate_timeout_s: float = 300.0,
     ) -> DorcClient:
-        """Create client for MCP mode with JWT auth.
+        """Create client for MCP mode with Bearer token.
 
         Args:
             base_url: MCP service URL
-            jwt_token: JWT bearer token (or set DORC_JWT env var)
-            engine_api_key: Optional engine API key (only if client calls engine directly)
-            token_provider: Optional callable that returns JWT token
+            token: Bearer token (API key or JWT) - required
             timeout_s: Request timeout in seconds
             validate_timeout_s: Validation request timeout in seconds
         """
         cfg = Config(
             base_url=base_url.rstrip("/"),
             mode="mcp",
-            jwt_token=(jwt_token.strip() if jwt_token else None),
-            engine_api_key=engine_api_key,
+            token=token.strip() if token else None,
         )
         return cls(
             config=cfg,
-            token_provider=token_provider,
             timeout_s=timeout_s,
             validate_timeout_s=validate_timeout_s,
         )
@@ -174,14 +162,14 @@ class DorcClient:
         )
         return cls(config=cfg, timeout_s=timeout_s, validate_timeout_s=validate_timeout_s)
 
-    def _auth_headers(self, require_jwt: bool = True) -> dict[str, str]:
-        """Get auth headers. require_jwt=False for health endpoints."""
-        if not require_jwt:
+    def _auth_headers(self, require_auth: bool = True) -> dict[str, str]:
+        """Get auth headers. require_auth=False for health endpoints."""
+        if not require_auth:
             return {}
         if self.config.mode == "mcp":
-            token = self._require_jwt()
+            token = self._require_token()
             return bearer_headers(token)
-        # engine-direct (legacy)
+        # engine-direct (legacy) - not part of contract but kept for compatibility
         return api_key_headers(self.config.api_key)
 
     def _raise_for_status(self, resp: httpx.Response) -> None:
@@ -235,13 +223,13 @@ class DorcClient:
 
     def health(self) -> dict[str, Any]:
         """GET /health - Returns health status (no auth required)."""
-        r = self._client.get("/health", timeout=self._timeout, headers=self._auth_headers(require_jwt=False))
+        r = self._client.get("/health", timeout=self._timeout, headers=self._auth_headers(require_auth=False))
         self._raise_for_status(r)
         return r.json()
 
     def healthz(self) -> dict[str, Any]:
         """GET /healthz - Returns health status (no auth required)."""
-        r = self._client.get("/healthz", timeout=self._timeout, headers=self._auth_headers(require_jwt=False))
+        r = self._client.get("/healthz", timeout=self._timeout, headers=self._auth_headers(require_auth=False))
         self._raise_for_status(r)
         return r.json()
 
@@ -317,7 +305,7 @@ class DorcClient:
             "/v1/validate",
             json=payload,
             timeout=self._validate_timeout,
-            headers=self._auth_headers(require_jwt=True),
+            headers=self._auth_headers(require_auth=True),
         )
         self._raise_for_status(resp)
         return ValidateResponse.model_validate(resp.json())
@@ -333,7 +321,6 @@ class DorcClient:
 
     def wait_for_completion(
         self,
-        tenant_slug: str,
         run_id: str,
         *,
         poll_interval_s: float = 2.0,
@@ -342,16 +329,16 @@ class DorcClient:
         """Poll /v1/runs/{run_id} until pipeline_status != RUNNING (best-effort helper).
 
         Args:
-            tenant_slug: Tenant identifier (must match JWT claim)
             run_id: Run identifier
             poll_interval_s: Polling interval in seconds
             timeout_s: Timeout in seconds
 
+        Note: In MCP mode, tenant is extracted from the Bearer token by MCP.
         Note: engine currently exposes `pipeline_status` not contract `status`.
         """
         deadline = time.time() + timeout_s
         while True:
-            r = self.get_run(tenant_slug, run_id)
+            r = self.get_run(run_id)
             if str(r.pipeline_status).upper() != "RUNNING":
                 return r
             if time.time() >= deadline:

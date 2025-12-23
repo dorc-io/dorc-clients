@@ -19,8 +19,8 @@ Usage:
         --audience "your-audience" \
         --tenant scott
 
-    # Option 3: Use the SDK's mint_jwt function
-    python -c "from dorc_client import mint_jwt; print(mint_jwt(secret='...', issuer='...', audience='...', tenant_slug='scott', subject='test-user'))"
+    # Note: The SDK does NOT generate tokens per CONTRACT.md.
+    # This script is for testing/dev only.
 """
 
 import argparse
@@ -28,13 +28,12 @@ import os
 import sys
 from pathlib import Path
 
-# Add parent directory to path so we can import dorc_client
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+import time
 
 try:
-    from dorc_client import mint_jwt
+    import jwt as pyjwt
 except ImportError:
-    print("ERROR: Could not import dorc_client. Make sure you're in the sdk/python directory.", file=sys.stderr)
+    print("ERROR: PyJWT is required. Install with: pip install PyJWT", file=sys.stderr)
     sys.exit(1)
 
 
@@ -123,17 +122,31 @@ Examples:
         print("ERROR: --audience is required (or set DORC_JWT_AUDIENCE env var)", file=sys.stderr)
         return 1
     
-    # Generate token
+    # Generate token (test/dev script - not part of SDK per CONTRACT.md)
     try:
-        token = mint_jwt(
-            secret=args.secret,
-            issuer=args.issuer,
-            audience=args.audience,
-            tenant_slug=args.tenant,
-            subject=args.subject,
-            ttl_seconds=args.ttl,
-            scope=args.scope,
-        )
+        now = int(time.time())
+        exp = now + args.ttl
+        
+        # Contract: iss, sub, tenant, scope, iat, exp
+        claims = {
+            "iss": args.issuer,
+            "aud": args.audience,
+            "sub": args.subject,
+            "tenant": args.tenant,  # Contract uses "tenant" not "tenant_slug"
+            "iat": now,
+            "exp": exp,
+        }
+        
+        if args.scope:
+            # Contract: scope is a list of allowed operations
+            if isinstance(args.scope, str):
+                claims["scope"] = [s.strip() for s in args.scope.split() if s.strip()]
+            else:
+                claims["scope"] = args.scope
+        else:
+            claims["scope"] = ["read", "write"]  # Default scope
+        
+        token = pyjwt.encode(claims, args.secret, algorithm="HS256")
     except Exception as e:
         print(f"ERROR: Failed to generate JWT: {e}", file=sys.stderr)
         return 1

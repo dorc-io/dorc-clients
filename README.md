@@ -34,7 +34,7 @@ from dorc_client import DorcClient
 
 # Set environment variables
 os.environ["DORC_MCP_URL"] = "https://your-mcp-url.run.app"
-os.environ["DORC_JWT"] = "<your oidc jwt>"
+os.environ["DORC_TOKEN"] = "<your-bearer-token>"
 
 # Create client
 client = DorcClient()
@@ -60,7 +60,7 @@ print(f"Counts: {response.counts}")
 - **`DORC_MCP_URL`** - Base URL of the dorc-mcp Cloud Run service (recommended)
   - Example: `https://dorc-mcp-xxxxx.us-east1.run.app`
   - No trailing slash
-- **`DORC_JWT`** (or `DORC_TOKEN`) - JWT bearer token to send to MCP
+- **`DORC_TOKEN`** (or `DORC_JWT` for backward compat) - Bearer token (API key or JWT) to send to MCP
 
 ### Engine-direct (advanced / explicit)
 
