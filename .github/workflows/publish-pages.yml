@@ -48,6 +48,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install jupyter-book
 
+      - name: Copy notebooks to docs
+        run: |
+          # Copy notebooks into docs directory for JupyterBook
+          cp -r notebooks/*.ipynb docs/ || true
+          cp notebooks/README.md docs/notebooks-README.md || true
+
       - name: Build JupyterBook
         run: |
           jupyter-book build docs

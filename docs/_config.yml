@@ -1,0 +1,30 @@
+# JupyterBook configuration
+# See https://jupyterbook.org/en/stable/customize/config.html
+
+title: dorc-clients Documentation
+author: DORC Team
+logo: ""
+
+# Execute notebooks before building
+execute:
+  execute_notebooks: "off"  # Set to "auto" to execute notebooks
+
+# HTML output settings
+html:
+  baseurl: ""  # Set to your GitHub Pages base path if using a custom domain
+  use_edit_page_button: false
+  use_repository_button: true
+  use_issues_button: true
+
+# Sphinx settings
+sphinx:
+  config:
+    html_theme: sphinx_book_theme
+    html_theme_options:
+      repository_url: ""  # Add your repo URL
+      repository_branch: main
+      path_to_docs: docs
+      use_repository_button: true
+      use_edit_page_button: true
+      use_issues_button: true
+
