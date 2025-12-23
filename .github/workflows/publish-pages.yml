@@ -77,17 +77,41 @@ jobs:
           echo "Verifying _toc.yml references exist:"
           grep -E "file:" docs/_toc.yml || echo "Could not parse _toc.yml"
           echo ""
+          echo "Checking if referenced files exist:"
+          for file in README.md notebooks-README.md 00_quickstart.ipynb 01_create_and_validate_cce.ipynb 02_review_and_rectify_loop.ipynb 03_export_jsonl_for_rag.ipynb; do
+            if [ -f "docs/$file" ]; then
+              echo "✓ docs/$file exists"
+            else
+              echo "✗ docs/$file MISSING"
+            fi
+          done
+          echo ""
           echo "Running: jupyter-book build docs"
           cd docs
-          jupyter-book build . 2>&1 || {
+          jupyter-book build . 2>&1 | tee build.log || {
             echo "Build failed with exit code $?"
+            echo "Build log contents:"
+            cat build.log || echo "No build.log found"
+            echo ""
+            echo "Checking for error logs:"
+            if [ -d "_build/logs" ]; then
+              find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
+            fi
             cd ..
             exit 1
           }
           cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
-          ls -la docs/_build/html/ || echo "No html directory found"
+          if [ -d "docs/_build/html" ]; then
+            echo "✓ HTML output directory exists"
+            ls -la docs/_build/html/ | head -20
+          else
+            echo "✗ HTML output directory missing"
+            echo "Contents of _build:"
+            find docs/_build -type f -o -type d | head -20
+            exit 1
+          fi
 
       - name: Verify build output
         run: |
