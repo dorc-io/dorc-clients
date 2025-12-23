@@ -1,13 +1,14 @@
 # JupyterBook table of contents
 # See https://jupyterbook.org/en/stable/structure/toc.html
 
-root: README
+format: jb-book
+root: README.md
 chapters:
-  - file: notebooks-README
+  - file: notebooks-README.md
   - title: Notebooks
     chapters:
-      - file: 00_quickstart
-      - file: 01_create_and_validate_cce
-      - file: 02_review_and_rectify_loop
-      - file: 03_export_jsonl_for_rag
+      - file: 00_quickstart.ipynb
+      - file: 01_create_and_validate_cce.ipynb
+      - file: 02_review_and_rectify_loop.ipynb
+      - file: 03_export_jsonl_for_rag.ipynb
 
