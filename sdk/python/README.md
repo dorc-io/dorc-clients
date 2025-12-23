@@ -1,8 +1,6 @@
 ## dorc-client (Python)
 
-Contract-native Python SDK for DORC.
-
-**Use MCP (JWT) by default.** Engine-direct mode (X-API-Key) is supported only as an explicit advanced option.
+Python SDK for DORC MCP service with JWT authentication.
 
 ### Install
 
@@ -10,36 +8,51 @@ Contract-native Python SDK for DORC.
 pip install dorc-client
 ```
 
-### Environment variables
-
-#### MCP mode (recommended)
-
-- **`DORC_MCP_URL`**: base URL of dorc-mcp (example: `https://dorc-mcp-xxxxx.us-east1.run.app`)
-- **`DORC_JWT`** (or `DORC_TOKEN`): JWT bearer token to send as `Authorization: Bearer <token>`
-
-Tenant is derived by MCP from the JWT claims; the SDK **does not** take `tenant_slug` in MCP mode.
-
-#### Engine-direct mode (advanced)
-
-- **`DORC_BASE_URL`** (or legacy `DORC_ENGINE_URL`): base URL of dorc-engine
-- **`DORC_TENANT_SLUG`**: required tenant slug (only for engine-direct)
-- **`DORC_API_KEY`**: required for engine v0.1 (sent as `X-API-Key`)
-
-### Usage
+### Quick Start
 
 ```python
-import os
 from dorc_client import DorcClient
 
-os.environ["DORC_MCP_URL"] = "https://your-mcp-url.run.app"
-os.environ["DORC_JWT"] = "<your oidc jwt>"
+# Create client with JWT token
+client = DorcClient(
+    base_url="https://dorc-mcp-xxxxx.run.app",
+    jwt_token="your-jwt-token-here",
+)
 
-with DorcClient() as c:
-    if not c.health():
-        raise SystemExit("service not healthy")
+# Health check (no auth required)
+health = client.health()
+print(health)  # {"status": "ok", "service": "dorc-mcp", "version": "0.1.0"}
 
-    r = c.validate(candidate_content="# Example\n\nHello.")
-    print(r.run_id, r.result)
+# Validate a CCE (JWT required)
+result = client.validate_cce(
+    tenant_slug="scott",
+    cce_markdown="# My Canon Entry\n\nContent here...",
+    source_id="doc-123",
+    tags=["important", "draft"],
+)
+print(f"Run ID: {result.run_id}, Status: {result.pipeline_status}")
+
+# Get run details
+run = client.get_run(tenant_slug="scott", run_id=result.run_id)
+
+# List chunks
+chunks = client.list_chunks(tenant_slug="scott", run_id=result.run_id)
 ```
+
+### Environment Variables
+
+- **`DORC_MCP_URL`**: base URL of dorc-mcp (example: `https://dorc-mcp-xxxxx.us-east1.run.app`)
+- **`DORC_JWT`** (or `DORC_TOKEN`): JWT bearer token for authentication
+- **`DORC_ENGINE_API_KEY`** (optional): Engine API key (only if client calls engine directly)
+
+### API Methods
+
+- `health()` → `GET /health` (no auth)
+- `healthz()` → `GET /healthz` (no auth)
+- `validate_cce(tenant_slug, cce_markdown, source_id=None, tags=None)` → `POST /v1/validate` (JWT required)
+- `get_run(tenant_slug, run_id)` → `GET /v1/runs/{run_id}` (JWT required)
+- `list_chunks(tenant_slug, run_id)` → `GET /v1/runs/{run_id}/chunks` (JWT required)
+
+All protected endpoints require JWT authentication. The `tenant_slug` parameter must match the `tenant_slug` claim in your JWT token.
 
 

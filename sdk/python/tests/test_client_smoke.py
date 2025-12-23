@@ -13,17 +13,17 @@ from dorc_client.models import ChunkResult, RunStateResponse, ValidateResponse
 
 @pytest.fixture
 def config():
-    """Create a test configuration."""
+    """Create a test MCP configuration."""
     return Config(
-        base_url="https://test-engine.run.app",
-        tenant_slug="test-tenant",
-        api_key=None,
+        base_url="https://test-mcp.run.app",
+        mode="mcp",
+        jwt_token="test-jwt-token",
     )
 
 
 @pytest.fixture
 def client(config):
-    """Create a test client."""
+    """Create a test MCP client."""
     c = DorcClient(config=config)
     return c
 
@@ -40,50 +40,42 @@ def test_health_success(client):
     """Test successful health check."""
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
-        assert str(request.url) == "https://test-engine.run.app/healthz"
-        return httpx.Response(status_code=200)
+        assert str(request.url) == "https://test-mcp.run.app/health"
+        return httpx.Response(
+            status_code=200,
+            json={"status": "ok", "service": "dorc-mcp", "version": "0.1.0"},
+        )
 
     _with_transport(client, handler)
-    assert client.health() is True
+    result = client.health()
+    assert result["status"] == "ok"
 
 
-def test_health_failure(client):
-    """Test failed health check."""
-    def handler(request: httpx.Request) -> httpx.Response:
-        if str(request.url).endswith("/healthz"):
-            return httpx.Response(status_code=500)
-        if str(request.url).endswith("/health"):
-            return httpx.Response(status_code=500)
-        return httpx.Response(status_code=404)
-
-    _with_transport(client, handler)
-    assert client.health() is False
-
-
-def test_validate_success(client):
-    """Test successful validation request."""
+def test_validate_cce_success(client):
+    """Test successful validate_cce request."""
     mock_response = {
-        "request_id": "req-test-1",
         "run_id": "run-test-123",
-        "status": "COMPLETE",
-        "result": "PASS",
-        "counts": {"PASS": 1, "FAIL": 0, "WARN": 0, "ERROR": 0, "total_chunks": 1},
-        "links": {"run": "/v1/runs/run-test-123", "chunks": "/v1/runs/run-test-123/chunks"},
+        "tenant_slug": "test-tenant",
+        "pipeline_status": "COMPLETE",
+        "content_summary": {"pass": 1, "fail": 0, "warn": 0, "error": 0},
+        "chunks": [],
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert str(request.url) == "https://test-engine.run.app/v1/validate"
+        assert str(request.url) == "https://test-mcp.run.app/v1/validate"
+        assert request.headers.get("Authorization") == "Bearer test-jwt-token"
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(client, handler)
-    response = client.validate(candidate_content="Test content")
+    response = client.validate_cce(
+        tenant_slug="test-tenant",
+        cce_markdown="Test content",
+    )
     
     assert isinstance(response, ValidateResponse)
     assert response.run_id == "run-test-123"
-    assert response.status == "COMPLETE"
-    assert response.result == "PASS"
-    assert response.counts.pass_ == 1
+    assert response.pipeline_status == "COMPLETE"
 
 
 def test_get_run_success(client):
@@ -104,11 +96,12 @@ def test_get_run_success(client):
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
-        assert str(request.url) == "https://test-engine.run.app/v1/runs/run-test-123"
+        assert str(request.url) == "https://test-mcp.run.app/v1/runs/run-test-123"
+        assert request.headers.get("Authorization") == "Bearer test-jwt-token"
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(client, handler)
-    response = client.get_run("run-test-123")
+    response = client.get_run(tenant_slug="test-tenant", run_id="run-test-123")
     
     assert isinstance(response, RunStateResponse)
     assert response.run_id == "run-test-123"
@@ -119,7 +112,8 @@ def test_get_run_not_found(client):
     """Test get_run with 404 error."""
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
-        assert str(request.url) == "https://test-engine.run.app/v1/runs/nonexistent"
+        assert str(request.url) == "https://test-mcp.run.app/v1/runs/nonexistent"
+        assert request.headers.get("Authorization") == "Bearer test-jwt-token"
         return httpx.Response(
             status_code=404,
             json={"error": {"code": "NOT_FOUND", "message": "run not found"}},
@@ -128,7 +122,7 @@ def test_get_run_not_found(client):
     _with_transport(client, handler)
     
     with pytest.raises(DorcError):
-        client.get_run("nonexistent")
+        client.get_run(tenant_slug="test-tenant", run_id="nonexistent")
 
 
 def test_list_chunks_success(client):
@@ -168,11 +162,12 @@ def test_list_chunks_success(client):
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
-        assert str(request.url) == "https://test-engine.run.app/v1/runs/run-test-123/chunks"
+        assert str(request.url) == "https://test-mcp.run.app/v1/runs/run-test-123/chunks"
+        assert request.headers.get("Authorization") == "Bearer test-jwt-token"
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(client, handler)
-    chunks = client.list_chunks("run-test-123")
+    chunks = client.list_chunks(tenant_slug="test-tenant", run_id="run-test-123")
     
     assert len(chunks) == 2
     assert isinstance(chunks[0], ChunkResult)
@@ -181,79 +176,32 @@ def test_list_chunks_success(client):
     assert chunks[1].finding_count == 2
 
 
-def test_config_from_env_missing_url():
-    """Test Config.from_env raises error when base URL is missing."""
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(Exception, match="DORC_MCP_URL|DORC_BASE_URL|DORC_ENGINE_URL"):
-            Config.from_env()
-
-
-def test_config_from_env_missing_tenant():
-    """Test Config.from_env raises error when DORC_TENANT_SLUG is missing."""
-    with patch.dict(os.environ, {"DORC_BASE_URL": "https://test.run.app"}, clear=True):
-        with pytest.raises(DorcConfigError, match="DORC_TENANT_SLUG"):
-            Config.from_env()
-
-
-def test_config_from_env_success():
-    """Test Config.from_env loads successfully with all required vars."""
+def test_config_from_env_mcp_mode():
+    """Test Config.from_env loads MCP mode when DORC_MCP_URL is set."""
     with patch.dict(
         os.environ,
         {
-            "DORC_BASE_URL": "https://test.run.app",
-            "DORC_TENANT_SLUG": "test-tenant",
+            "DORC_MCP_URL": "https://test-mcp.run.app",
+            "DORC_JWT": "test-jwt-token",
         },
         clear=True,
     ):
         config = Config.from_env()
-        assert config.base_url == "https://test.run.app"
-        assert config.tenant_slug == "test-tenant"
-        assert config.api_key is None
-
-
-def test_config_from_env_with_api_key():
-    """Test Config.from_env loads API key when set."""
-    with patch.dict(
-        os.environ,
-        {
-            "DORC_BASE_URL": "https://test.run.app",
-            "DORC_TENANT_SLUG": "test-tenant",
-            "DORC_API_KEY": "test-key-123",
-        },
-        clear=True,
-    ):
-        config = Config.from_env()
-        assert config.api_key == "test-key-123"
+        assert config.base_url == "https://test-mcp.run.app"
+        assert config.mode == "mcp"
+        assert config.jwt_token == "test-jwt-token"
 
 
 def test_config_strips_trailing_slash():
-    """Test Config.from_env strips trailing slash from engine_url."""
+    """Test Config.from_env strips trailing slash from base_url."""
     with patch.dict(
         os.environ,
         {
-            "DORC_BASE_URL": "https://test.run.app/",
-            "DORC_TENANT_SLUG": "test-tenant",
+            "DORC_MCP_URL": "https://test-mcp.run.app/",
+            "DORC_JWT": "test-jwt",
         },
         clear=True,
     ):
         config = Config.from_env()
-        assert config.base_url == "https://test.run.app"
-
-
-def test_client_with_auth(config):
-    """Test client sends auth header when API key is set."""
-    config_with_key = Config(
-        base_url=config.base_url,
-        mode="engine",
-        tenant_slug=config.tenant_slug,
-        api_key="test-key-123",
-    )
-    client = DorcClient(config=config_with_key)
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.headers.get("X-API-Key") == "test-key-123"
-        return httpx.Response(status_code=200)
-
-    _with_transport(client, handler)
-    client.health()
+        assert config.base_url == "https://test-mcp.run.app"
 
