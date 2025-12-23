@@ -92,33 +92,58 @@ jobs:
           rm -rf docs/_build .jupyter-book || true
           
           echo ""
-          echo "Running: jupyter-book build docs (from repository root)"
-          # Build from root, specifying docs/ as the source directory
-          jupyter-book build docs 2>&1 | tee build.log || {
+          echo "Changing to docs directory and building from there..."
+          cd docs
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo ""
+          echo "Verifying all referenced files exist:"
+          echo "Checking README.md (root):"
+          [ -f "README.md" ] && echo "✓ README.md exists" || { echo "✗ README.md MISSING"; exit 1; }
+          echo "Checking notebooks-README.md:"
+          [ -f "notebooks-README.md" ] && echo "✓ notebooks-README.md exists" || { echo "✗ notebooks-README.md MISSING"; exit 1; }
+          for nb in 00_quickstart 01_create_and_validate_cce 02_review_and_rectify_loop 03_export_jsonl_for_rag; do
+            if [ -f "${nb}.ipynb" ]; then
+              echo "✓ ${nb}.ipynb exists"
+            else
+              echo "✗ ${nb}.ipynb MISSING"
+              exit 1
+            fi
+          done
+          echo ""
+          echo "Verifying _toc.yml structure:"
+          cat _toc.yml
+          echo ""
+          echo "Running: jupyter-book build ."
+          # Build from within docs directory
+          jupyter-book build . 2>&1 | tee ../build.log || {
             EXIT_CODE=$?
             echo "Build failed with exit code $EXIT_CODE"
             echo "Full build log:"
-            cat build.log || echo "No build.log found"
+            cat ../build.log || echo "No build.log found"
             echo ""
             echo "Checking for error logs:"
-            if [ -d "docs/_build/logs" ]; then
+            if [ -d "_build/logs" ]; then
               echo "Error log files:"
-              find docs/_build/logs -type f
+              find _build/logs -type f
               echo ""
               echo "Error log contents:"
-              find docs/_build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
+              find _build/logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
             fi
             echo ""
-            echo "Contents of docs/ directory:"
-            ls -la docs/
+            echo "Contents of current directory:"
+            ls -la
             echo ""
-            echo "docs/_toc.yml contents:"
-            cat docs/_toc.yml
+            echo "_toc.yml contents:"
+            cat _toc.yml
             echo ""
-            echo "docs/_config.yml contents:"
-            cat docs/_config.yml
+            echo "_config.yml contents:"
+            cat _config.yml
+            cd ..
             exit $EXIT_CODE
           }
+          cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
           if [ -d "docs/_build/html" ]; then
