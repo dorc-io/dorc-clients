@@ -1,13 +1,13 @@
-# dorc-clients Documentation
+# dorc-clients docs
 
-Welcome to the dorc-clients documentation.
+Simple markdown docs for contributors and users of the `dorc-client` SDK.
 
-This JupyterBook contains interactive notebooks and guides for using the dorc-client SDK.
+This repo intentionally does **not** publish a static site (no GitHub Pages, no JupyterBook, no MkDocs).
 
 ## Getting Started
 
 1. Install the SDK: `pip install -e sdk/python`
-2. Set environment variables: `DORC_ENGINE_URL` and `DORC_TENANT_SLUG`
+2. Set environment variables: `DORC_BASE_URL` and `DORC_TENANT_SLUG`
 3. Follow the notebooks in order to learn how to use the client
 
 ## Notebooks

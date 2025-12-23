@@ -1,4 +1,4 @@
-"""Smoke tests for dorc-client SDK using mocked HTTP responses."""
+"""Tests for dorc-client SDK using mocked HTTP responses."""
 
 import os
 from unittest.mock import patch
@@ -7,19 +7,15 @@ import pytest
 import pytest_httpx
 
 from dorc_client import Config, DorcClient
-from dorc_client.types import (
-    ChunkResult,
-    ContentSummary,
-    RunStateResponse,
-    ValidateResponse,
-)
+from dorc_client.errors import DorcConfigError, DorcHttpError
+from dorc_client.models import ChunkResult, RunStateResponse, ValidateResponse
 
 
 @pytest.fixture
 def config():
     """Create a test configuration."""
     return Config(
-        engine_url="https://test-engine.run.app",
+        base_url="https://test-engine.run.app",
         tenant_slug="test-tenant",
         api_key=None,
     )
@@ -31,7 +27,7 @@ def client(config):
     return DorcClient(config=config)
 
 
-def test_healthz_success(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_health_success(client, httpx_mock: pytest_httpx.HTTPXMock):
     """Test successful health check."""
     httpx_mock.add_response(
         method="GET",
@@ -39,18 +35,25 @@ def test_healthz_success(client, httpx_mock: pytest_httpx.HTTPXMock):
         status_code=200,
     )
     
-    assert client.healthz() is True
+    assert client.health() is True
 
 
-def test_healthz_failure(client, httpx_mock: pytest_httpx.HTTPXMock):
+def test_health_failure(client, httpx_mock: pytest_httpx.HTTPXMock):
     """Test failed health check."""
     httpx_mock.add_response(
         method="GET",
         url="https://test-engine.run.app/healthz",
         status_code=500,
+        is_reusable=True,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test-engine.run.app/health",
+        status_code=500,
+        is_reusable=True,
     )
     
-    assert client.healthz() is False
+    assert client.health() is False
 
 
 def test_validate_success(client, httpx_mock: pytest_httpx.HTTPXMock):
@@ -86,7 +89,7 @@ def test_validate_success(client, httpx_mock: pytest_httpx.HTTPXMock):
         status_code=200,
     )
     
-    response = client.validate("Test content")
+    response = client.validate(content="Test content")
     
     assert isinstance(response, ValidateResponse)
     assert response.run_id == "run-test-123"
@@ -135,7 +138,7 @@ def test_get_run_not_found(client, httpx_mock: pytest_httpx.HTTPXMock):
         json={"detail": "run not found"},
     )
     
-    with pytest.raises(Exception):  # httpx.HTTPStatusError
+    with pytest.raises(DorcHttpError):
         client.get_run("nonexistent")
 
 
@@ -191,16 +194,16 @@ def test_list_chunks_success(client, httpx_mock: pytest_httpx.HTTPXMock):
 
 
 def test_config_from_env_missing_url():
-    """Test Config.from_env raises error when DORC_ENGINE_URL is missing."""
+    """Test Config.from_env raises error when base URL is missing."""
     with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(ValueError, match="DORC_ENGINE_URL"):
+        with pytest.raises(Exception, match="DORC_BASE_URL|DORC_ENGINE_URL"):
             Config.from_env()
 
 
 def test_config_from_env_missing_tenant():
     """Test Config.from_env raises error when DORC_TENANT_SLUG is missing."""
-    with patch.dict(os.environ, {"DORC_ENGINE_URL": "https://test.run.app"}, clear=True):
-        with pytest.raises(ValueError, match="DORC_TENANT_SLUG"):
+    with patch.dict(os.environ, {"DORC_BASE_URL": "https://test.run.app"}, clear=True):
+        with pytest.raises(DorcConfigError, match="DORC_TENANT_SLUG"):
             Config.from_env()
 
 
@@ -209,13 +212,13 @@ def test_config_from_env_success():
     with patch.dict(
         os.environ,
         {
-            "DORC_ENGINE_URL": "https://test.run.app",
+            "DORC_BASE_URL": "https://test.run.app",
             "DORC_TENANT_SLUG": "test-tenant",
         },
         clear=True,
     ):
         config = Config.from_env()
-        assert config.engine_url == "https://test.run.app"
+        assert config.base_url == "https://test.run.app"
         assert config.tenant_slug == "test-tenant"
         assert config.api_key is None
 
@@ -225,7 +228,7 @@ def test_config_from_env_with_api_key():
     with patch.dict(
         os.environ,
         {
-            "DORC_ENGINE_URL": "https://test.run.app",
+            "DORC_BASE_URL": "https://test.run.app",
             "DORC_TENANT_SLUG": "test-tenant",
             "DORC_API_KEY": "test-key-123",
         },
@@ -240,19 +243,23 @@ def test_config_strips_trailing_slash():
     with patch.dict(
         os.environ,
         {
-            "DORC_ENGINE_URL": "https://test.run.app/",
+            "DORC_BASE_URL": "https://test.run.app/",
             "DORC_TENANT_SLUG": "test-tenant",
         },
         clear=True,
     ):
         config = Config.from_env()
-        assert config.engine_url == "https://test.run.app"
+        assert config.base_url == "https://test.run.app"
 
 
 def test_client_with_auth(config, httpx_mock: pytest_httpx.HTTPXMock):
     """Test client sends auth header when API key is set."""
-    config.api_key = "test-key-123"
-    client = DorcClient(config=config)
+    config_with_key = Config(
+        base_url=config.base_url,
+        tenant_slug=config.tenant_slug,
+        api_key="test-key-123",
+    )
+    client = DorcClient(config=config_with_key)
     
     httpx_mock.add_response(
         method="GET",
@@ -260,10 +267,10 @@ def test_client_with_auth(config, httpx_mock: pytest_httpx.HTTPXMock):
         status_code=200,
     )
     
-    client.healthz()
+    client.health()
     
     # Verify the request included the auth header
     request = httpx_mock.get_request()
     assert request is not None
-    assert request.headers.get("Authorization") == "Bearer test-key-123"
+    assert request.headers.get("X-API-Key") == "test-key-123"
 

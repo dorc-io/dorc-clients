@@ -8,14 +8,14 @@ import os
 import sys
 from typing import Any, Dict, List
 
-# Add SDK to path if running standalone
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sdk", "python"))
-
 try:
     from dorc_client import DorcClient, Config
 except ImportError:
     # Fallback if SDK not installed
-    print("Warning: dorc_client not found. Install with: pip install -e ../sdk/python")
+    print(
+        "Warning: dorc_client not found. Install with: pip install -e ../sdk/python",
+        file=sys.stderr,
+    )
     Config = None
     DorcClient = None
 

@@ -33,20 +33,20 @@ import os
 from dorc_client import DorcClient
 
 # Set environment variables
-os.environ["DORC_ENGINE_URL"] = "https://your-engine-url.run.app"
+os.environ["DORC_BASE_URL"] = "https://your-engine-url.run.app"
 os.environ["DORC_TENANT_SLUG"] = "my-tenant"
 
 # Create client
 client = DorcClient()
 
 # Check health
-if client.healthz():
+if client.health():
     print("Engine is healthy!")
 
 # Validate content
 response = client.validate(
-    candidate_text="# My Document\n\nContent here...",
-    candidate_id="my-candidate-001"
+    content="# My Document\n\nContent here...",
+    candidate_id="my-candidate-001",
 )
 
 print(f"Run ID: {response.run_id}")
@@ -58,9 +58,10 @@ print(f"Summary: {response.content_summary}")
 
 ### Required
 
-- **`DORC_ENGINE_URL`** - Base URL of the dorc-engine Cloud Run service
+- **`DORC_BASE_URL`** - Base URL of the dorc-engine Cloud Run service
   - Example: `https://dorc-engine-1092170595100.us-east1.run.app`
   - No trailing slash
+  - Back-compat: `DORC_ENGINE_URL` is still accepted but deprecated
 
 - **`DORC_TENANT_SLUG`** - Tenant identifier for all requests
   - Example: `my-tenant`, `research-team`, `hyperfocus`
@@ -69,7 +70,7 @@ print(f"Summary: {response.content_summary}")
 ### Optional
 
 - **`DORC_API_KEY`** - API key for authentication (if required)
-  - If set, sends `Authorization: Bearer <key>` header
+  - If set, sends `X-API-Key: <key>` header
   - If not set, no auth header is sent
 
 ## Repository Structure
@@ -91,8 +92,8 @@ The SDK provides a clean, type-safe interface to dorc-engine:
 
 - **`DorcClient`** - Main client class
 - **Methods:**
-  - `healthz() -> bool` - Check service health
-  - `validate(...) -> ValidateResponse` - Validate candidate content
+  - `health() -> bool` - Check service health (tries `/healthz` then `/health`)
+  - `validate(...) -> ValidateResponse` - Validate candidate content (POST `/v1/validate`)
   - `get_run(run_id: str) -> RunStateResponse` - Get run status
   - `list_chunks(run_id: str) -> list[ChunkResult]` - Get chunk details
 
@@ -150,36 +151,11 @@ Tests use mocked HTTP responses - no real network calls.
 - **No infrastructure**: No Terraform, no deployment configs
 - **No engine code**: This repo only contains client code
 
-## Publishing
+## Docs policy
 
-This repository automatically publishes a JupyterBook to GitHub Pages on every push to `main`.
-
-### How It Works
-
-- The GitHub Actions workflow (`.github/workflows/publish-pages.yml`) builds the JupyterBook from the `docs/` directory
-- On push to `main`, the workflow:
-  1. Validates that `docs/_config.yml` and `docs/_toc.yml` exist
-  2. Builds the JupyterBook using `jupyter-book build docs`
-  3. Deploys the built HTML to GitHub Pages
-
-### Enabling GitHub Pages
-
-To enable GitHub Pages for this repository:
-
-1. Go to **Settings** → **Pages**
-2. Under **Source**, select **GitHub Actions**
-3. The workflow will automatically deploy on the next push to `main`
-
-### Preview Locally
-
-To preview the JupyterBook locally before pushing:
-
-```bash
-pip install jupyter-book
-jupyter-book build docs
-```
-
-Then open `docs/_build/html/index.html` in your browser.
+- Notebooks are **examples only** (`notebooks/`).
+- Documentation is plain markdown (`docs/`).
+- This repo intentionally does **not** publish a static site (no GitHub Pages, no JupyterBook, no MkDocs).
 
 ## License
 

@@ -18,7 +18,7 @@ The MCP server provides a thin adapter layer over the `dorc_client` SDK, exposin
 
 The server uses the same environment variables as the SDK:
 
-- `DORC_ENGINE_URL` (required)
+- `DORC_BASE_URL` (required)
 - `DORC_TENANT_SLUG` (required)
 - `DORC_API_KEY` (optional)
 

@@ -54,9 +54,11 @@ Interactive notebooks for working with dorc-engine to create and validate Candid
 All notebooks require:
 
 1. **Environment variables:**
-   - `DORC_ENGINE_URL` - Your dorc-engine Cloud Run service URL
+   - `DORC_BASE_URL` - Your dorc-engine Cloud Run service URL
    - `DORC_TENANT_SLUG` - Your tenant identifier
    - `DORC_API_KEY` (optional) - API key if authentication is required
+
+   Note: `DORC_ENGINE_URL` is accepted for backwards compatibility but deprecated.
 
 2. **SDK installation:**
    - Notebooks install the SDK from the repository path
