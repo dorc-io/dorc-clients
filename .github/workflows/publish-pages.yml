@@ -89,14 +89,7 @@ jobs:
           done
           echo ""
           echo "Validating _toc.yml syntax:"
-          python3 -c "
-import yaml
-with open('docs/_toc.yml') as f:
-    toc = yaml.safe_load(f)
-    print('✓ _toc.yml is valid YAML')
-    print(f'Root: {toc.get(\"root\")}')
-    print(f'Chapters: {len(toc.get(\"chapters\", []))}')
-" || echo "YAML validation failed (non-critical)"
+          python3 -c 'import yaml; f = open("docs/_toc.yml"); toc = yaml.safe_load(f); f.close(); print("✓ _toc.yml is valid YAML"); print(f"Root: {toc.get(\"root\")}"); print(f"Chapters: {len(toc.get(\"chapters\", []))}")' || echo "YAML validation failed (non-critical)"
           
           echo ""
           echo "Running: jupyter-book build from docs directory"
