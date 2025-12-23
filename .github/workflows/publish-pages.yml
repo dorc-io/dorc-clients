@@ -51,15 +51,40 @@ jobs:
       - name: Copy notebooks to docs
         run: |
           # Copy notebooks into docs directory for JupyterBook
+          echo "Copying notebooks..."
           cp notebooks/*.ipynb docs/ 2>/dev/null || true
           cp notebooks/README.md docs/notebooks-README.md 2>/dev/null || true
-          echo "Copied files to docs/:"
-          ls -la docs/*.ipynb docs/*.md 2>/dev/null || echo "No files found"
+          echo "Files in docs/ after copy:"
+          ls -la docs/ || echo "docs/ directory listing failed"
+          echo ""
+          echo "Checking for required files:"
+          [ -f "docs/README.md" ] && echo "✓ docs/README.md exists" || echo "✗ docs/README.md missing"
+          [ -f "docs/_config.yml" ] && echo "✓ docs/_config.yml exists" || echo "✗ docs/_config.yml missing"
+          [ -f "docs/_toc.yml" ] && echo "✓ docs/_toc.yml exists" || echo "✗ docs/_toc.yml missing"
+          [ -f "docs/notebooks-README.md" ] && echo "✓ docs/notebooks-README.md exists" || echo "✗ docs/notebooks-README.md missing"
+          echo ""
+          echo "Notebook files:"
+          ls -la docs/*.ipynb 2>/dev/null || echo "No .ipynb files found"
 
       - name: Build JupyterBook
         run: |
           set -e
-          jupyter-book build docs
+          echo "Building JupyterBook..."
+          echo "Current directory: $(pwd)"
+          echo "Contents of docs/:"
+          ls -la docs/ || echo "Cannot list docs/"
+          echo ""
+          echo "Verifying _toc.yml references exist:"
+          grep -E "file:" docs/_toc.yml || echo "Could not parse _toc.yml"
+          echo ""
+          echo "Running: jupyter-book build docs"
+          cd docs
+          jupyter-book build . 2>&1 || {
+            echo "Build failed with exit code $?"
+            cd ..
+            exit 1
+          }
+          cd ..
           echo "Build completed. Checking output..."
           ls -la docs/_build/ || echo "No _build directory found"
           ls -la docs/_build/html/ || echo "No html directory found"
