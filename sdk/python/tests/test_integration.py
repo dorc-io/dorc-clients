@@ -119,7 +119,7 @@ def test_validate_without_jwt():
         pytest.skip("DORC_MCP_URL must be set")
     
     # Create client without JWT
-    client = DorcClient.for_mcp(mcp_url, jwt_token=None)
+    client = DorcClient.for_mcp(mcp_url, token=None)
     
     with pytest.raises(DorcAuthError) as exc_info:
         client.validate(candidate_content="# Test")
@@ -134,7 +134,7 @@ def test_validate_invalid_jwt():
         pytest.skip("DORC_MCP_URL must be set")
     
     # Create client with invalid JWT
-    client = DorcClient.for_mcp(mcp_url, jwt_token="invalid-token")
+    client = DorcClient.for_mcp(mcp_url, token="invalid-token")
     
     with pytest.raises((DorcAuthError, DorcError)) as exc_info:
         client.validate(candidate_content="# Test")

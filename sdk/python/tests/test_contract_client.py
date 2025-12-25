@@ -8,7 +8,7 @@ from dorc_client.errors import DorcError
 
 
 def test_mcp_client_builds_contract_body_and_auth(monkeypatch: pytest.MonkeyPatch):
-    c = DorcClient.for_mcp("https://mcp.example", jwt_token="t")
+    c = DorcClient.for_mcp("https://mcp.example", token="t")
 
     seen = {}
 

@@ -16,7 +16,7 @@ def mcp_config():
     return Config(
         base_url="https://test-mcp.run.app",
         mode="mcp",
-        jwt_token="test-jwt-token-123",
+        token="test-jwt-token-123",
     )
 
 
@@ -109,7 +109,7 @@ def test_validate_cce_raises_error_without_jwt():
     config = Config(
         base_url="https://test-mcp.run.app",
         mode="mcp",
-        jwt_token=None,  # No JWT
+        token=None,  # No JWT
     )
     client = DorcClient(config=config)
 
@@ -194,16 +194,16 @@ def test_config_from_env_mcp_mode():
         config = Config.from_env()
         assert config.base_url == "https://test-mcp.run.app"
         assert config.mode == "mcp"
-        assert config.jwt_token == "test-jwt-token"
+        assert config.token == "test-jwt-token"
 
 
 def test_for_mcp_factory():
     """Test DorcClient.for_mcp factory method."""
     client = DorcClient.for_mcp(
         base_url="https://test-mcp.run.app",
-        jwt_token="test-jwt",
+        token="test-jwt",
     )
     assert client.config.base_url == "https://test-mcp.run.app"
     assert client.config.mode == "mcp"
-    assert client.config.jwt_token == "test-jwt"
+    assert client.config.token == "test-jwt"
 
