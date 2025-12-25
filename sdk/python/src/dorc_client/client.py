@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 import time
 import warnings
-import os
-from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -82,7 +81,9 @@ class DorcClient:
                 )
 
         self.config = config
-        self._default_request_id = (request_id or os.getenv("DORC_REQUEST_ID") or "").strip() or None
+        self._default_request_id = (
+            (request_id or os.getenv("DORC_REQUEST_ID") or "").strip() or None
+        )
         self._timeout = httpx.Timeout(timeout_s)
         self._validate_timeout = httpx.Timeout(validate_timeout_s)
         self._client = httpx.Client(
@@ -103,7 +104,10 @@ class DorcClient:
             raise DorcAuthError(
                 status_code=401,
                 code="UNAUTHENTICATED",
-                message="Bearer token is required. Set token parameter or DORC_TOKEN environment variable.",
+                message=(
+                    "Bearer token is required. "
+                    "Set token parameter or DORC_TOKEN environment variable."
+                ),
             )
         return token
 
@@ -165,7 +169,9 @@ class DorcClient:
         )
         return cls(config=cfg, timeout_s=timeout_s, validate_timeout_s=validate_timeout_s)
 
-    def _auth_headers(self, require_auth: bool = True, request_id: str | None = None) -> dict[str, str]:
+    def _auth_headers(
+        self, require_auth: bool = True, request_id: str | None = None
+    ) -> dict[str, str]:
         """Get auth headers. require_auth=False for health endpoints."""
         headers: dict[str, str] = {}
         req_id = (request_id or self._default_request_id or "").strip() or None
@@ -232,13 +238,21 @@ class DorcClient:
 
     def health(self) -> dict[str, Any]:
         """GET /health - Returns health status (no auth required)."""
-        r = self._client.get("/health", timeout=self._timeout, headers=self._auth_headers(require_auth=False))
+        r = self._client.get(
+            "/health",
+            timeout=self._timeout,
+            headers=self._auth_headers(require_auth=False),
+        )
         self._raise_for_status(r)
         return r.json()
 
     def healthz(self) -> dict[str, Any]:
         """GET /healthz - Returns health status (no auth required)."""
-        r = self._client.get("/healthz", timeout=self._timeout, headers=self._auth_headers(require_auth=False))
+        r = self._client.get(
+            "/healthz",
+            timeout=self._timeout,
+            headers=self._auth_headers(require_auth=False),
+        )
         self._raise_for_status(r)
         return r.json()
 

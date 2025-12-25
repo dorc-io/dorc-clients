@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from dorc_client import Config, DorcClient
-from dorc_client.errors import DorcConfigError, DorcError
+from dorc_client.errors import DorcError
 from dorc_client.models import ChunkResult, RunStateResponse, ValidateResponse
 
 
