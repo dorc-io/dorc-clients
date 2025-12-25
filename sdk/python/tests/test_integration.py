@@ -10,16 +10,12 @@ To run:
 
 Or skip if env vars not set:
     pytest tests/test_integration.py -v -m "not integration"
+Integration tests for DorcClient
 """
-
 import os
-
 import pytest
-
 from dorc_client import DorcClient
-from dorc_client.errors import DorcAuthError
-from dorc_client.errors import DorcError
-
+from dorc_client.errors import DorcAuthError, DorcError
 
 # Mark all tests in this file as integration tests
 pytestmark = pytest.mark.integration
