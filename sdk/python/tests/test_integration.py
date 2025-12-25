@@ -17,7 +17,8 @@ import os
 import pytest
 
 from dorc_client import DorcClient
-from dorc_client.errors import DorcAuthError, DorcError
+from dorc_client.errors import DorcAuthError
+from dorc_client.errors import DorcError
 
 
 # Mark all tests in this file as integration tests
