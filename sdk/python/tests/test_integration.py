@@ -13,7 +13,9 @@ Or skip if env vars not set:
 Integration tests for DorcClient
 """
 import os
+
 import pytest
+
 from dorc_client import DorcClient
 from dorc_client.errors import DorcAuthError, DorcError
 
