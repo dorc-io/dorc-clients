@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 import warnings
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -67,6 +68,7 @@ class DorcClient:
         timeout_s: float = 30.0,
         validate_timeout_s: float = 300.0,
         config: Config | None = None,
+        request_id: str | None = None,
     ):
         if config is None:
             if base_url is None and token is None:
@@ -80,6 +82,7 @@ class DorcClient:
                 )
 
         self.config = config
+        self._default_request_id = (request_id or os.getenv("DORC_REQUEST_ID") or "").strip() or None
         self._timeout = httpx.Timeout(timeout_s)
         self._validate_timeout = httpx.Timeout(validate_timeout_s)
         self._client = httpx.Client(
@@ -162,15 +165,21 @@ class DorcClient:
         )
         return cls(config=cfg, timeout_s=timeout_s, validate_timeout_s=validate_timeout_s)
 
-    def _auth_headers(self, require_auth: bool = True) -> dict[str, str]:
+    def _auth_headers(self, require_auth: bool = True, request_id: str | None = None) -> dict[str, str]:
         """Get auth headers. require_auth=False for health endpoints."""
+        headers: dict[str, str] = {}
+        req_id = (request_id or self._default_request_id or "").strip() or None
+        if req_id:
+            headers["X-Request-Id"] = req_id
         if not require_auth:
-            return {}
+            return headers
         if self.config.mode == "mcp":
             token = self._require_token()
-            return bearer_headers(token)
+            headers.update(bearer_headers(token))
+            return headers
         # engine-direct (legacy) - not part of contract but kept for compatibility
-        return api_key_headers(self.config.api_key)
+        headers.update(api_key_headers(self.config.api_key))
+        return headers
 
     def _raise_for_status(self, resp: httpx.Response) -> None:
         if 200 <= resp.status_code < 300:
@@ -290,6 +299,8 @@ class DorcClient:
         )
 
         payload = req.model_dump(exclude_none=True)
+        if not payload.get("request_id") and self._default_request_id:
+            payload["request_id"] = self._default_request_id
 
         # Engine-direct requires tenant_slug; MCP must not include it.
         if self.config.mode == "engine":
@@ -305,7 +316,7 @@ class DorcClient:
             "/v1/validate",
             json=payload,
             timeout=self._validate_timeout,
-            headers=self._auth_headers(require_auth=True),
+            headers=self._auth_headers(require_auth=True, request_id=payload.get("request_id")),
         )
         self._raise_for_status(resp)
         return ValidateResponse.model_validate(resp.json())

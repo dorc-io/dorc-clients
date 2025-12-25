@@ -176,6 +176,32 @@ def test_list_chunks_success(client):
     assert chunks[1].finding_count == 2
 
 
+def test_request_id_header_sent(config):
+    """Ensure X-Request-Id is sent when provided."""
+    c = DorcClient(config=config, request_id="req-abc123")
+
+    mock_response = {
+        "request_id": "req-abc123",
+        "run_id": "run-test-123",
+        "tenant_slug": "test-tenant",
+        "pipeline_status": "COMPLETE",
+        "content_summary": {"pass": 1, "fail": 0, "warn": 0, "error": 0},
+        "chunks": [],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers.get("X-Request-Id") == "req-abc123"
+        return httpx.Response(status_code=200, json=mock_response)
+
+    _with_transport(c, handler)
+    resp = c.validate(
+        candidate_content="hello",
+        candidate_id="c-1",
+        candidate_title="t",
+    )
+    assert resp.request_id == "req-abc123"
+
+
 def test_config_from_env_mcp_mode():
     """Test Config.from_env loads MCP mode when DORC_MCP_URL is set."""
     with patch.dict(

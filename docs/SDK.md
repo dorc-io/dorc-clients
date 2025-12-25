@@ -22,6 +22,7 @@ python -m dorc_client.examples.validate_cce --base-url "$DORC_MCP_URL" --token "
 Headers:
 - SDK always sends `Authorization: Bearer <token>` in MCP mode.
 - Pass `--request-id <id>` (or env `DORC_REQUEST_ID`) to propagate `X-Request-Id`.
+- The SDK will also pick up `DORC_REQUEST_ID` automatically when set.
 
 Legacy engine mode:
 - Still available via `mode="engine"` and `DORC_BASE_URL` + `DORC_TENANT_SLUG` + `DORC_API_KEY`, but not recommended.
