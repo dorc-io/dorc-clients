@@ -52,13 +52,14 @@ def test_health_success(client):
 
 
 def test_validate_cce_success(client):
-    """Test successful validate_cce request."""
+    """Test successful validate request."""
     mock_response = {
+        "request_id": "req-test-123",
         "run_id": "run-test-123",
-        "tenant_slug": "test-tenant",
-        "pipeline_status": "COMPLETE",
-        "content_summary": {"pass": 1, "fail": 0, "warn": 0, "error": 0},
-        "chunks": [],
+        "status": "COMPLETE",
+        "result": "PASS",
+        "counts": {"PASS": 1, "FAIL": 0, "WARN": 0, "ERROR": 0, "total_chunks": 1},
+        "links": {"run": "/v1/runs/run-test-123", "chunks": "/v1/runs/run-test-123/chunks"},
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -68,14 +69,11 @@ def test_validate_cce_success(client):
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(client, handler)
-    response = client.validate_cce(
-        tenant_slug="test-tenant",
-        cce_markdown="Test content",
-    )
+    response = client.validate(candidate_content="Test content")
     
     assert isinstance(response, ValidateResponse)
     assert response.run_id == "run-test-123"
-    assert response.pipeline_status == "COMPLETE"
+    assert response.status == "COMPLETE"
 
 
 def test_get_run_success(client):
@@ -101,7 +99,7 @@ def test_get_run_success(client):
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(client, handler)
-    response = client.get_run(tenant_slug="test-tenant", run_id="run-test-123")
+    response = client.get_run(run_id="run-test-123")
     
     assert isinstance(response, RunStateResponse)
     assert response.run_id == "run-test-123"
@@ -122,7 +120,7 @@ def test_get_run_not_found(client):
     _with_transport(client, handler)
     
     with pytest.raises(DorcError):
-        client.get_run(tenant_slug="test-tenant", run_id="nonexistent")
+        client.get_run(run_id="nonexistent")
 
 
 def test_list_chunks_success(client):
@@ -167,7 +165,7 @@ def test_list_chunks_success(client):
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(client, handler)
-    chunks = client.list_chunks(tenant_slug="test-tenant", run_id="run-test-123")
+    chunks = client.list_chunks(run_id="run-test-123")
     
     assert len(chunks) == 2
     assert isinstance(chunks[0], ChunkResult)
@@ -183,10 +181,10 @@ def test_request_id_header_sent(config):
     mock_response = {
         "request_id": "req-abc123",
         "run_id": "run-test-123",
-        "tenant_slug": "test-tenant",
-        "pipeline_status": "COMPLETE",
-        "content_summary": {"pass": 1, "fail": 0, "warn": 0, "error": 0},
-        "chunks": [],
+        "status": "COMPLETE",
+        "result": "PASS",
+        "counts": {"PASS": 1, "FAIL": 0, "WARN": 0, "ERROR": 0, "total_chunks": 1},
+        "links": {"run": "/v1/runs/run-test-123", "chunks": "/v1/runs/run-test-123/chunks"},
     }
 
     def handler(request: httpx.Request) -> httpx.Response:

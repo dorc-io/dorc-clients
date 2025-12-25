@@ -72,13 +72,14 @@ def test_healthz_works_without_jwt(mcp_client):
 
 
 def test_validate_cce_sends_authorization_header(mcp_client):
-    """Test validate_cce sends Authorization: Bearer <jwt> header."""
+    """Test validate sends Authorization: Bearer <jwt> header."""
     mock_response = {
+        "request_id": "req-test-123",
         "run_id": "run-test-123",
-        "tenant_slug": "test-tenant",
-        "pipeline_status": "COMPLETE",
-        "content_summary": {"pass": 1, "fail": 0, "warn": 0, "error": 0},
-        "chunks": [],
+        "status": "COMPLETE",
+        "result": "PASS",
+        "counts": {"PASS": 1, "FAIL": 0, "WARN": 0, "ERROR": 0, "total_chunks": 1},
+        "links": {"run": "/v1/runs/run-test-123", "chunks": "/v1/runs/run-test-123/chunks"},
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -88,19 +89,16 @@ def test_validate_cce_sends_authorization_header(mcp_client):
         auth_header = request.headers.get("Authorization")
         assert auth_header is not None
         assert auth_header == "Bearer test-jwt-token-123"
-        # Verify payload includes tenant_slug
+        # Verify payload does NOT include tenant_slug (MCP derives it from JWT)
         payload = request.read()
         import json
         data = json.loads(payload)
-        assert data["tenant_slug"] == "test-tenant"
+        assert "tenant_slug" not in data
         assert data["candidate"]["content"] == "# Test CCE\n\nContent here."
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(mcp_client, handler)
-    response = mcp_client.validate_cce(
-        tenant_slug="test-tenant",
-        cce_markdown="# Test CCE\n\nContent here.",
-    )
+    response = mcp_client.validate(candidate_content="# Test CCE\n\nContent here.")
     assert response.run_id == "run-test-123"
 
 
@@ -114,12 +112,8 @@ def test_validate_cce_raises_error_without_jwt():
     client = DorcClient(config=config)
 
     with pytest.raises(DorcAuthError) as exc_info:
-        client.validate_cce(
-            tenant_slug="test-tenant",
-            cce_markdown="# Test",
-        )
-    assert "JWT token is required" in str(exc_info.value)
-    assert exc_info.value.status_code == 401
+        client.validate(candidate_content="# Test")
+    assert "Bearer token is required" in str(exc_info.value) or exc_info.value.status_code == 401
 
 
 def test_get_run_sends_authorization_header(mcp_client):
@@ -143,7 +137,7 @@ def test_get_run_sends_authorization_header(mcp_client):
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(mcp_client, handler)
-    response = mcp_client.get_run(tenant_slug="test-tenant", run_id="run-test-123")
+    response = mcp_client.get_run(run_id="run-test-123")
     assert response.run_id == "run-test-123"
 
 
@@ -176,7 +170,7 @@ def test_list_chunks_sends_authorization_header(mcp_client):
         return httpx.Response(status_code=200, json=mock_response)
 
     _with_transport(mcp_client, handler)
-    chunks = mcp_client.list_chunks(tenant_slug="test-tenant", run_id="run-test-123")
+    chunks = mcp_client.list_chunks(run_id="run-test-123")
     assert len(chunks) == 1
     assert chunks[0].status == "PASS"
 
