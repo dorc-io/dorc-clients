@@ -215,7 +215,7 @@ def test_config_from_env_mcp_mode():
         config = Config.from_env()
         assert config.base_url == "https://test-mcp.run.app"
         assert config.mode == "mcp"
-            assert config.token == "test-jwt-token"
+        assert config.token == "test-jwt-token"
 
 
 def test_config_strips_trailing_slash():
