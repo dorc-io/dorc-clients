@@ -33,7 +33,7 @@ _TENANT_RE = re.compile(TENANT_SLUG_REGEX)
 
 
 def _is_transient_exc(exc: BaseException) -> bool:
-    return isinstance(exc, (httpx.TimeoutException, httpx.NetworkError))
+    return isinstance(exc, httpx.TimeoutException | httpx.NetworkError)
 
 
 def _is_transient_response(resp: httpx.Response) -> bool:
