@@ -2,7 +2,7 @@
 """Check JWT configuration in deployed Cloud Run service.
 
 This script uses gcloud to check what JWT configuration is set in your
-deployed dorc-mcp Cloud Run service.
+deployed dorc-api Cloud Run service.
 
 Usage:
     python scripts/check_jwt_config.py
@@ -79,7 +79,7 @@ def get_service_env_vars(project_id, region, service_name):
 def main():
     project_id = os.getenv("PROJECT_ID", "dorc-481715")
     region = os.getenv("REGION", "us-east1")
-    service_name = os.getenv("SERVICE", "dorc-mcp")
+    service_name = os.getenv("SERVICE", "dorc-api")
     
     print("=" * 60)
     print(f"Checking JWT Configuration")

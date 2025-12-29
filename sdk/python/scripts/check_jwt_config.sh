@@ -3,7 +3,7 @@
 
 PROJECT_ID="${PROJECT_ID:-dorc-481715}"
 REGION="${REGION:-us-east1}"
-SERVICE="${SERVICE:-dorc-mcp}"
+SERVICE="${SERVICE:-dorc-api}"
 
 echo "Checking JWT configuration for $SERVICE in $REGION..."
 echo ""

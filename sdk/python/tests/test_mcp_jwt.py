@@ -44,13 +44,13 @@ def test_health_works_without_jwt(mcp_client):
         assert "Authorization" not in request.headers
         return httpx.Response(
             status_code=200,
-            json={"status": "ok", "service": "dorc-mcp", "version": "0.1.0"},
+            json={"status": "ok", "service": "dorc-api", "version": "0.1.0"},
         )
 
     _with_transport(mcp_client, handler)
     result = mcp_client.health()
     assert result["status"] == "ok"
-    assert result["service"] == "dorc-mcp"
+    assert result["service"] == "dorc-api"
 
 
 def test_healthz_works_without_jwt(mcp_client):
@@ -62,13 +62,13 @@ def test_healthz_works_without_jwt(mcp_client):
         assert "Authorization" not in request.headers
         return httpx.Response(
             status_code=200,
-            json={"status": "ok", "service": "dorc-mcp", "version": "0.1.0"},
+            json={"status": "ok", "service": "dorc-api", "version": "0.1.0"},
         )
 
     _with_transport(mcp_client, handler)
     result = mcp_client.healthz()
     assert result["status"] == "ok"
-    assert result["service"] == "dorc-mcp"
+    assert result["service"] == "dorc-api"
 
 
 def test_validate_cce_sends_authorization_header(mcp_client):

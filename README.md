@@ -57,8 +57,8 @@ print(f"Counts: {response.counts}")
 
 ### Required
 
-- **`DORC_MCP_URL`** - Base URL of the dorc-mcp Cloud Run service (recommended)
-  - Example: `https://dorc-mcp-xxxxx.us-east1.run.app`
+- **`DORC_MCP_URL`** - Base URL of the dorc-api Cloud Run service (recommended)
+  - Example: `https://dorc-api-xxxxx.us-east1.run.app`
   - No trailing slash
 - **`DORC_TOKEN`** (or `DORC_JWT` for backward compat) - Bearer token (API key or JWT) to send to MCP
 

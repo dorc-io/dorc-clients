@@ -43,7 +43,7 @@ def test_health_success(client):
         assert str(request.url) == "https://test-mcp.run.app/health"
         return httpx.Response(
             status_code=200,
-            json={"status": "ok", "service": "dorc-mcp", "version": "0.1.0"},
+            json={"status": "ok", "service": "dorc-api", "version": "0.1.0"},
         )
 
     _with_transport(client, handler)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone integration test script for dorc-mcp service.
+"""Standalone integration test script for dorc-api service.
 
 This script makes real HTTP calls to test your deployed service.
 No mocks, no fakes - actual integration testing.
@@ -124,7 +124,7 @@ def test_validate_without_jwt() -> bool:
 def main() -> int:
     """Run all integration tests."""
     print("=" * 60)
-    print("🚀 DORC-MCP Integration Test")
+    print("🚀 DORC-API Integration Test")
     print("=" * 60)
     
     # Check environment variables
@@ -133,7 +133,7 @@ def main() -> int:
     
     if not mcp_url:
         print("\n❌ ERROR: DORC_MCP_URL environment variable is required")
-        print("   Example: export DORC_MCP_URL=https://dorc-mcp-xxxxx.us-east1.run.app")
+        print("   Example: export DORC_MCP_URL=https://dorc-api-xxxxx.us-east1.run.app")
         return 1
     
     if not jwt:

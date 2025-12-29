@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate a test JWT token for testing dorc-mcp service.
+"""Generate a test JWT token for testing dorc-api service.
 
 This script helps you generate a JWT token that will work with your deployed
-dorc-mcp service. You need to know the JWT configuration from your Cloud Run
+dorc-api service. You need to know the JWT configuration from your Cloud Run
 service (secret, issuer, audience).
 
 Usage:
@@ -39,7 +39,7 @@ except ImportError:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate a test JWT token for dorc-mcp service",
+        description="Generate a test JWT token for dorc-api service",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

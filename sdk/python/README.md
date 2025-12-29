@@ -17,13 +17,13 @@ from dorc_client import DorcClient
 
 # Create client with Bearer token (API key or JWT)
 client = DorcClient(
-    base_url="https://dorc-mcp-xxxxx.run.app",
+    base_url="https://dorc-api-xxxxx.run.app",
     token="your-bearer-token-here",  # API key or JWT
 )
 
 # Health check (no auth required)
 health = client.health()
-print(health)  # {"status": "ok", "service": "dorc-mcp", "version": "0.1.0"}
+print(health)  # {"status": "ok", "service": "dorc-api", "version": "0.1.0"}
 
 # Validate content (Bearer token required)
 result = client.validate(
@@ -41,7 +41,7 @@ chunks = client.list_chunks(run_id=result.run_id)
 
 ### Environment Variables
 
-- **`DORC_MCP_URL`**: base URL of dorc-mcp (example: `https://dorc-mcp-xxxxx.us-east1.run.app`)
+- **`DORC_MCP_URL`**: base URL of dorc-api (example: `https://dorc-api-xxxxx.us-east1.run.app`)
 - **`DORC_TOKEN`** (or `DORC_JWT` for backward compat): Bearer token (API key or JWT)
 
 ### API Methods

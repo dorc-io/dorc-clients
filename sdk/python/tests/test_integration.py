@@ -1,6 +1,6 @@
 """Integration tests for dorc-client SDK against a real deployed service.
 
-These tests make actual HTTP calls to a deployed dorc-mcp service.
+These tests make actual HTTP calls to a deployed dorc-api service.
 Set DORC_MCP_URL and DORC_JWT environment variables to run these tests.
 
 To run:
@@ -40,7 +40,7 @@ def test_health_endpoint(client: DorcClient):
     result = client.health()
     assert result["status"] == "ok"
     assert "service" in result
-    assert result["service"] == "dorc-mcp"
+    assert result["service"] == "dorc-api"
 
 
 def test_healthz_endpoint(client: DorcClient):
