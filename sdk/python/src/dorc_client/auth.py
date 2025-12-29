@@ -22,50 +22,23 @@ def get_identity_platform_token(
     project_id: str | None = None,
     credentials_path: str | None = None,
 ) -> str:
-    """Get an Identity Platform JWT token (RS256) for API Gateway authentication.
-    
-    This function uses Google Application Default Credentials (ADC) to obtain
-    an Identity Platform token. The token will be validated by API Gateway.
-    
-    Args:
-        audience: The API Gateway audience (typically "dorc-api")
-        tenant: Optional tenant identifier (will be set as custom claim if supported)
-        project_id: Optional GCP project ID (defaults to ADC project)
-        credentials_path: Optional path to service account JSON (for local dev)
-    
-    Returns:
-        JWT token string (RS256, issued by Identity Platform)
-    
-    Raises:
-        RuntimeError: If token cannot be obtained
-    
-    Note:
-        This requires the `google-auth` library. Install with:
-        pip install google-auth
-        
-        For Identity Platform tokens, you typically need to:
-        1. Configure Identity Platform in your GCP project
-        2. Set up OAuth2/OIDC providers
-        3. Authenticate users via Identity Platform (not service accounts)
-        
-        For service account-based access, consider using ID tokens instead.
+    """DEPRECATED: Identity Platform is no longer used for tenant-scoped tokens.
+
+    DORC now uses:
+    - Firebase Authentication for web UI (human users)
+    - dorc-api-minted RS256 tenant access tokens for SDK/agents
+
+    To get a tenant access token:
+    1. Authenticate with Firebase (web UI)
+    2. Call POST /v1/tenants/{tenant}/tokens via dorc-api
+    3. Use the returned token for SDK/agent authentication
+
+    This function is kept for backward compatibility but will always raise NotImplementedError.
     """
-    try:
-        from google.auth import default
-        from google.auth.transport.requests import Request as AuthRequest
-    except ImportError:
-        raise RuntimeError(
-            "google-auth is required for Identity Platform tokens. "
-            "Install with: pip install google-auth"
-        )
-    
-    # For Identity Platform, we typically need user authentication tokens
-    # Service accounts can't directly get Identity Platform tokens
-    # This is a placeholder - actual implementation depends on your auth flow
     raise NotImplementedError(
-        "Identity Platform token generation requires user authentication. "
-        "Use OAuth2/OIDC flow to authenticate users and obtain tokens, "
-        "or use HS256 tokens for direct API access (when API Gateway is disabled)."
+        "Identity Platform is deprecated. "
+        "Use Firebase Authentication (web UI) or dorc-api tenant access tokens (SDK/agents). "
+        "See dorc-api/docs/DUAL_TOKEN_AUTH.md for details."
     )
 
 
