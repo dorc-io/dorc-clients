@@ -44,17 +44,17 @@ def get_identity_platform_token(
 
 def get_id_token(*, audience: str, credentials_path: str | None = None) -> str:
     """Get a Google ID token for service-to-service authentication.
-    
+
     This uses Application Default Credentials (ADC) to obtain an ID token
     for the specified audience. Useful for service-to-service calls.
-    
+
     Args:
         audience: The target service URL or audience
         credentials_path: Optional path to service account JSON (for local dev)
-    
+
     Returns:
         ID token string
-    
+
     Raises:
         RuntimeError: If token cannot be obtained
     """
@@ -67,13 +67,12 @@ def get_id_token(*, audience: str, credentials_path: str | None = None) -> str:
             "google-auth is required for ID tokens. "
             "Install with: pip install google-auth"
         )
-    
+
     credentials, project = default()
     if not credentials.valid:
         credentials.refresh(AuthRequest())
-    
+
     # Request ID token for the audience
     request = AuthRequest()
     token = id_token.fetch_id_token(request, audience)
     return token
-
