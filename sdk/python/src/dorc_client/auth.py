@@ -28,13 +28,14 @@ def get_identity_platform_token(tenant_slug: str) -> str:
 
     **New approach:**
     - Use tenant access tokens minted by dorc-api (RS256 JWTs)
-    - Obtain tokens via dorc-web UI: navigate to tenant → tokens page
+    - Obtain tokens via dorc-ai UI: navigate to tenant → tokens page
+    - Or obtain tokens via SDK token exchange endpoint
     - Tokens are shown once and must be copied securely
     - Use tokens with `bearer_headers(token)` for API authentication
 
     **Migration:**
-    1. Authenticate via Firebase (Google sign-in) in dorc-web
-    2. Create tenant access token via UI
+    1. Authenticate via Firebase (Google sign-in) in dorc-ai
+    2. Create tenant access token via UI or via SDK token exchange endpoint
     3. Use the token with the SDK client
 
     Args:
@@ -49,7 +50,7 @@ def get_identity_platform_token(tenant_slug: str) -> str:
     raise NotImplementedError(
         "get_identity_platform_token() is deprecated. "
         "DORC no longer uses Google Identity Platform for tenant-scoped tokens. "
-        "Please use tenant access tokens obtained via dorc-web UI instead. "
+        "Please use tenant access tokens obtained via dorc-ai UI or via SDK token exchange endpoint instead. "
         "See https://github.com/your-org/dorc-api/docs/DUAL_TOKEN_AUTH.md for details."
     )
 
