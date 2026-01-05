@@ -1,7 +1,22 @@
 {
-  "name": "dorc-clients",
-  "private": true,
-  "workspaces": [
-    "sdk/typescript"
+  "name": "@dorc/clients",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for DORC API",
+  "main": "sdk/typescript/dist/index.js",
+  "types": "sdk/typescript/dist/index.d.ts",
+  "scripts": {
+    "build": "cd sdk/typescript && npm install && npm run build",
+    "postinstall": "cd sdk/typescript && npm install && npm run build"
+  },
+  "keywords": [
+    "dorc",
+    "sdk",
+    "typescript"
+  ],
+  "author": "DORC",
+  "license": "Apache-2.0",
+  "files": [
+    "sdk/typescript/dist",
+    "sdk/typescript/src"
   ]
 }
