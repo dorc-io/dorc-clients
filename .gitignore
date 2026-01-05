@@ -46,7 +46,6 @@ env/
 .env.local
 *.key
 *.pem
-*.json
 !**/notebooks/**/*.json
 !**/notebooks/**/*.jsonl
 

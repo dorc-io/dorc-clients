@@ -1,0 +1,7 @@
+{
+  "name": "dorc-clients",
+  "private": true,
+  "workspaces": [
+    "sdk/typescript"
+  ]
+}

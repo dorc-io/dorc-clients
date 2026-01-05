@@ -1,0 +1,25 @@
+{
+  "name": "@dorc/clients",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for DORC API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "dorc",
+    "sdk",
+    "typescript"
+  ],
+  "author": "DORC",
+  "license": "Apache-2.0",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
