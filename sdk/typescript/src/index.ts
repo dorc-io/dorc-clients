@@ -1,20 +1,41 @@
 /**
  * @dorc/clients - TypeScript SDK
  * 
- * This is a stub implementation. Full SDK methods will be implemented later.
+ * TypeScript SDK for interacting with the DORC API.
  */
 
+// Error types
+export class DorcError extends Error {
+  constructor(
+    message: string,
+    public statusCode?: number,
+    public code?: string
+  ) {
+    super(message)
+    this.name = 'DorcError'
+  }
+}
+
+// Type definitions
 export interface ValidateParams {
   tenantSlug: string
   candidate: {
     content: string
-    sourceId?: string
-    tags?: string[]
+    cce_id?: string
+    title?: string
+    source?: string
+    labels?: Record<string, string>
   }
-  mode?: 'audit' | 'build-corpus' | 'use-corpus'
+  mode?: 'audit' | 'rectify' | 'smoke'
   options?: {
-    useRag?: boolean
-    focus?: string[]
+    chunking?: {
+      max_chars?: number
+      overlap_chars?: number
+    }
+    models?: {
+      primary?: string
+      fallback?: string
+    }
   }
 }
 
@@ -26,6 +47,7 @@ export interface ValidationRun {
     warn: number
     fail: number
   }
+  message?: string
 }
 
 export interface ValidationChunk {
@@ -36,12 +58,61 @@ export interface ValidationChunk {
   suggestions?: string[]
 }
 
+export interface Corpus {
+  id: string
+  slug: string
+  name: string
+  createdAt: Date
+}
+
+export interface Thread {
+  id: string
+  name: string
+  createdAt: Date
+  updatedAt: Date
+  messageCount: number
+  tenantSlug?: string
+}
+
+export interface ThreadMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+}
+
+export interface ChatParams {
+  provider: 'openai' | 'gemini' | 'custom'
+  preference: 'dorc-shared-gemini' | 'dorc-shared-openai' | 'my-keys-gemini' | 'my-keys-openai' | 'byo-ai'
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system'
+    content: string
+  }>
+  api_key?: string
+  custom_endpoint?: string
+  custom_token?: string
+  model?: string
+  temperature?: number
+  thread_id?: string
+}
+
+export interface ChatResponse {
+  content: string
+  model?: string
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
+  thread_id?: string
+}
+
 export class DorcClient {
   private apiUrl: string
   private token: string | null = null
 
   constructor(apiUrl: string) {
-    this.apiUrl = apiUrl
+    this.apiUrl = apiUrl.replace(/\/$/, '') // Remove trailing slash
   }
 
   setToken(token: string | null): void {
@@ -53,66 +124,371 @@ export class DorcClient {
   }
 
   /**
+   * Internal HTTP request helper
+   */
+  private async _request<T>(
+    method: string,
+    path: string,
+    body?: any,
+    queryParams?: Record<string, string>
+  ): Promise<T> {
+    if (!this.token) {
+      throw new DorcError('Authentication token is required. Call setToken() first.', 401, 'AUTH_REQUIRED')
+    }
+
+    const url = new URL(path, this.apiUrl)
+    if (queryParams) {
+      Object.entries(queryParams).forEach(([key, value]) => {
+        url.searchParams.append(key, value)
+      })
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.token}`,
+    }
+
+    const options: RequestInit = {
+      method,
+      headers,
+    }
+
+    if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      options.body = JSON.stringify(body)
+    }
+
+    try {
+      const response = await fetch(url.toString(), options)
+
+      // Handle error responses
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        let errorCode: string | undefined
+
+        try {
+          const errorBody = await response.json()
+          if (errorBody.error?.message) {
+            errorMessage = errorBody.error.message
+          }
+          if (errorBody.error?.code) {
+            errorCode = errorBody.error.code
+          }
+        } catch {
+          // If JSON parsing fails, use default error message
+        }
+
+        // Map status codes to error types
+        if (response.status === 401) {
+          throw new DorcError('Authentication failed. Please check your token.', 401, errorCode || 'AUTH_FAILED')
+        } else if (response.status === 403) {
+          throw new DorcError('Permission denied. You do not have access to this resource.', 403, errorCode || 'PERMISSION_DENIED')
+        } else if (response.status === 404) {
+          throw new DorcError('Resource not found.', 404, errorCode || 'NOT_FOUND')
+        } else if (response.status === 400) {
+          throw new DorcError(errorMessage, 400, errorCode || 'BAD_REQUEST')
+        } else if (response.status >= 500) {
+          throw new DorcError('Server error. Please try again later.', response.status, errorCode || 'SERVER_ERROR')
+        } else {
+          throw new DorcError(errorMessage, response.status, errorCode)
+        }
+      }
+
+      // Parse successful response
+      const data = await response.json()
+      return data as T
+    } catch (error) {
+      if (error instanceof DorcError) {
+        throw error
+      }
+      // Network or other errors
+      throw new DorcError(
+        `Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        undefined,
+        'NETWORK_ERROR'
+      )
+    }
+  }
+
+  /**
    * Validate a candidate document
-   * TODO: Implement actual API call
    */
   async validate(params: ValidateParams): Promise<ValidationRun> {
-    throw new Error('SDK method not yet implemented - validate')
+    const requestBody = {
+      mode: params.mode || 'audit',
+      candidate: {
+        content: params.candidate.content,
+        content_type: 'text/markdown' as const,
+        cce_id: params.candidate.cce_id,
+        title: params.candidate.title,
+        source: params.candidate.source,
+        labels: params.candidate.labels,
+      },
+      options: params.options || {},
+    }
+
+    const response = await this._request<{
+      run_id: string
+      links?: {
+        run?: string
+        chunks?: string
+      }
+    }>('POST', '/v1/validate', requestBody)
+
+    return {
+      id: response.run_id,
+      status: 'queued',
+    }
   }
 
   /**
    * Get validation run status
-   * TODO: Implement actual API call
    */
   async getRun(runId: string): Promise<ValidationRun> {
-    throw new Error('SDK method not yet implemented - getRun')
+    const response = await this._request<{
+      run_id: string
+      status: string
+      summary?: {
+        pass: number
+        warn: number
+        fail: number
+      }
+      message?: string
+    }>('GET', `/v1/runs/${runId}`)
+
+    // Map API status to SDK status
+    let status: 'queued' | 'running' | 'succeeded' | 'failed' = 'queued'
+    if (response.status === 'COMPLETED' || response.status === 'SUCCEEDED') {
+      status = 'succeeded'
+    } else if (response.status === 'FAILED' || response.status === 'ERROR') {
+      status = 'failed'
+    } else if (response.status === 'RUNNING' || response.status === 'PROCESSING') {
+      status = 'running'
+    }
+
+    return {
+      id: response.run_id,
+      status,
+      summary: response.summary,
+      message: response.message,
+    }
   }
 
   /**
    * Get chunks for a validation run
-   * TODO: Implement actual API call
    */
   async getChunks(runId: string): Promise<ValidationChunk[]> {
-    throw new Error('SDK method not yet implemented - getChunks')
+    const response = await this._request<{
+      chunks: Array<{
+        chunk_id?: string
+        id?: string
+        status: string
+        content: string
+        findings: string[]
+        suggestions?: string[]
+      }>
+    }>('GET', `/v1/runs/${runId}/chunks`)
+
+    return (response.chunks || []).map((chunk) => {
+      // Map API status to SDK status
+      let status: 'pass' | 'warn' | 'fail' = 'pass'
+      if (chunk.status === 'WARN' || chunk.status === 'warning') {
+        status = 'warn'
+      } else if (chunk.status === 'FAIL' || chunk.status === 'failed' || chunk.status === 'error') {
+        status = 'fail'
+      }
+
+      return {
+        id: chunk.chunk_id || chunk.id || '',
+        status,
+        content: chunk.content,
+        findings: chunk.findings || [],
+        suggestions: chunk.suggestions,
+      }
+    })
   }
 
   /**
-   * List threads
-   * TODO: Implement actual API call
+   * List all corpora (tenants) the user has access to
    */
-  async listThreads(): Promise<any[]> {
-    throw new Error('SDK method not yet implemented - listThreads')
+  async listCorpora(): Promise<Corpus[]> {
+    const response = await this._request<{
+      tenants: Array<{
+        tenant_slug: string
+        created_at?: number
+        name?: string
+      }>
+    }>('GET', '/v1/corpora')
+
+    return (response.tenants || []).map((tenant) => ({
+      id: tenant.tenant_slug,
+      slug: tenant.tenant_slug,
+      name: tenant.name || tenant.tenant_slug,
+      createdAt: tenant.created_at ? new Date(tenant.created_at * 1000) : new Date(),
+    }))
   }
 
   /**
-   * Get thread
-   * TODO: Implement actual API call
+   * Get a specific corpus by slug
    */
-  async getThread(threadId: string): Promise<any> {
-    throw new Error('SDK method not yet implemented - getThread')
+  async getCorpus(slug: string): Promise<Corpus | null> {
+    const corpora = await this.listCorpora()
+    return corpora.find((c) => c.slug === slug) || null
   }
 
   /**
-   * Create thread
-   * TODO: Implement actual API call
+   * Create a new corpus (tenant)
    */
-  async createThread(params: any): Promise<any> {
-    throw new Error('SDK method not yet implemented - createThread')
+  async createCorpus(params: { slug: string; name?: string }): Promise<Corpus> {
+    const response = await this._request<{
+      tenant_slug: string
+      created_at: number
+    }>('POST', '/v1/corpora', {
+      tenant_slug: params.slug,
+    })
+
+    return {
+      id: response.tenant_slug,
+      slug: response.tenant_slug,
+      name: params.name || response.tenant_slug,
+      createdAt: new Date(response.created_at * 1000),
+    }
   }
 
   /**
-   * List corpora
-   * TODO: Implement actual API call
+   * List all chat threads for a tenant
    */
-  async listCorpora(): Promise<any[]> {
-    throw new Error('SDK method not yet implemented - listCorpora')
+  async listThreads(tenantSlug: string): Promise<Thread[]> {
+    const response = await this._request<{
+      threads: Array<{
+        thread_id: string
+        name: string
+        created_at: number
+        updated_at: number
+        message_count: number
+      }>
+    }>('GET', '/v1/ai/threads', undefined, {
+      tenant_slug: tenantSlug,
+    })
+
+    return (response.threads || []).map((thread) => ({
+      id: thread.thread_id,
+      name: thread.name,
+      createdAt: new Date(thread.created_at * 1000),
+      updatedAt: new Date(thread.updated_at * 1000),
+      messageCount: thread.message_count,
+      tenantSlug,
+    }))
   }
 
   /**
-   * Get corpus
-   * TODO: Implement actual API call
+   * Get a specific thread by ID
+   * Note: This filters from listThreads since there's no direct GET endpoint
    */
-  async getCorpus(slug: string): Promise<any> {
-    throw new Error('SDK method not yet implemented - getCorpus')
+  async getThread(threadId: string, tenantSlug: string): Promise<Thread | null> {
+    const threads = await this.listThreads(tenantSlug)
+    return threads.find((t) => t.id === threadId) || null
+  }
+
+  /**
+   * Create a new chat thread
+   */
+  async createThread(params: { tenantSlug: string; name: string }): Promise<Thread> {
+    const response = await this._request<{
+      thread_id: string
+      name: string
+      created_at: number
+      updated_at: number
+      message_count: number
+    }>('POST', '/v1/ai/threads', {
+      tenant_slug: params.tenantSlug,
+      name: params.name,
+    })
+
+    return {
+      id: response.thread_id,
+      name: response.name,
+      createdAt: new Date(response.created_at * 1000),
+      updatedAt: new Date(response.updated_at * 1000),
+      messageCount: response.message_count,
+      tenantSlug: params.tenantSlug,
+    }
+  }
+
+  /**
+   * Delete a chat thread
+   */
+  async deleteThread(threadId: string): Promise<void> {
+    await this._request('DELETE', `/v1/ai/threads/${threadId}`)
+  }
+
+  /**
+   * Get messages from a chat thread
+   */
+  async getThreadMessages(threadId: string): Promise<ThreadMessage[]> {
+    const response = await this._request<{
+      messages: Array<{
+        role: 'user' | 'assistant' | 'system'
+        content: string
+        timestamp: number
+      }>
+    }>('GET', `/v1/ai/threads/${threadId}/messages`)
+
+    return (response.messages || []).map((msg, index) => ({
+      id: `${threadId}-${index}`,
+      role: msg.role,
+      content: msg.content,
+      timestamp: new Date(msg.timestamp * 1000),
+    }))
+  }
+
+  /**
+   * Send a chat message and get AI response
+   */
+  async chat(params: ChatParams): Promise<ChatResponse> {
+    const requestBody: any = {
+      provider: params.provider,
+      preference: params.preference,
+      messages: params.messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+    }
+
+    if (params.api_key) {
+      requestBody.api_key = params.api_key
+    }
+    if (params.custom_endpoint) {
+      requestBody.custom_endpoint = params.custom_endpoint
+    }
+    if (params.custom_token) {
+      requestBody.custom_token = params.custom_token
+    }
+    if (params.model) {
+      requestBody.model = params.model
+    }
+    if (params.temperature !== undefined) {
+      requestBody.temperature = params.temperature
+    }
+    if (params.thread_id) {
+      requestBody.thread_id = params.thread_id
+    }
+
+    const response = await this._request<{
+      content: string
+      model?: string
+      usage?: {
+        prompt_tokens?: number
+        completion_tokens?: number
+        total_tokens?: number
+      }
+      thread_id?: string
+    }>('POST', '/v1/ai/chat', requestBody)
+
+    return {
+      content: response.content,
+      model: response.model,
+      usage: response.usage,
+      thread_id: response.thread_id,
+    }
   }
 }
