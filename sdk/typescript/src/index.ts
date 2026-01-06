@@ -132,31 +132,9 @@ export class DorcClient {
     body?: any,
     queryParams?: Record<string, string>
   ): Promise<T> {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'_request called',data:{method,path,hasToken:!!this.token,tokenLength:this.token?.length,tokenPreview:this.token?.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (!this.token) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'No token set',data:{method,path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       throw new DorcError('Authentication token is required. Call setToken() first.', 401, 'AUTH_REQUIRED')
     }
-
-    // Decode token to check algorithm
-    let tokenAlg = 'unknown'
-    try {
-      const parts = this.token.split('.')
-      if (parts.length === 3) {
-        const header = JSON.parse(atob(parts[0]))
-        tokenAlg = header.alg || 'unknown'
-      }
-    } catch (e) {
-      // Ignore decode errors
-    }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'Token decoded',data:{method,path,tokenAlg,tokenLength:this.token.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     const url = new URL(path, this.apiUrl)
     if (queryParams) {
@@ -180,15 +158,7 @@ export class DorcClient {
     }
 
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'Making API request',data:{method,url:url.toString(),tokenAlg},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-
       const response = await fetch(url.toString(), options)
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'API response received',data:{method,path,status:response.status,statusText:response.statusText,tokenAlg},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       // Handle error responses
       if (!response.ok) {
@@ -207,17 +177,11 @@ export class DorcClient {
           if (errorBody.detail) {
             errorDetail = errorBody.detail
           }
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'API error response',data:{method,path,status:response.status,errorMessage,errorCode,errorDetail},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
         } catch {
           // If JSON parsing fails, try to get text
           try {
             const errorText = await response.text()
             errorDetail = errorText.substring(0, 200)
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'API error response (text)',data:{method,path,status:response.status,errorText:errorText.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
           } catch {
             // If text parsing also fails, use default error message
           }
