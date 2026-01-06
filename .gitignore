@@ -60,4 +60,6 @@ dmypy.json
 
 # Distribution / packaging
 *.whl
+# Allow TypeScript SDK dist files to be committed
+!sdk/typescript/dist/
 

@@ -5,7 +5,8 @@
   "main": "sdk/typescript/dist/index.js",
   "types": "sdk/typescript/dist/index.d.ts",
   "scripts": {
-    "build": "cd sdk/typescript && npm install && npm run build"
+    "build": "cd sdk/typescript && npm install && npm run build",
+    "prepare": "cd sdk/typescript && npm install && npm run build"
   },
   "keywords": [
     "dorc",
