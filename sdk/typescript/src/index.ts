@@ -132,7 +132,13 @@ export class DorcClient {
     body?: any,
     queryParams?: Record<string, string>
   ): Promise<T> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:135',message:'_request: called',data:{method,path,hasToken:!!this.token,tokenLength:this.token?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (!this.token) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:137',message:'_request: no token error',data:{method,path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       throw new DorcError('Authentication token is required. Call setToken() first.', 401, 'AUTH_REQUIRED')
     }
 
@@ -158,7 +164,13 @@ export class DorcClient {
     }
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:161',message:'_request: making fetch',data:{method,url:url.toString(),hasToken:!!this.token,tokenLength:this.token?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       const response = await fetch(url.toString(), options)
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:163',message:'_request: got response',data:{method,path,status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
 
       // Handle error responses
       if (!response.ok) {
