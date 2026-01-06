@@ -16,6 +16,7 @@
   "author": "DORC",
   "license": "Apache-2.0",
   "files": [
+    "sdk/typescript/src",
     "sdk/typescript/dist",
     "sdk/typescript/package.json",
     "sdk/typescript/tsconfig.json"
