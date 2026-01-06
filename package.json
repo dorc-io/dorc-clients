@@ -2,8 +2,8 @@
   "name": "@dorc/clients",
   "version": "0.1.0",
   "description": "TypeScript SDK for DORC API",
-  "main": "sdk/typescript/src/index.ts",
-  "types": "sdk/typescript/src/index.ts",
+  "main": "sdk/typescript/dist/index.js",
+  "types": "sdk/typescript/dist/index.d.ts",
   "scripts": {
     "build": "cd sdk/typescript && npm install && npm run build"
   },
@@ -15,7 +15,7 @@
   "author": "DORC",
   "license": "Apache-2.0",
   "files": [
-    "sdk/typescript/src",
+    "sdk/typescript/dist",
     "sdk/typescript/package.json",
     "sdk/typescript/tsconfig.json"
   ]
