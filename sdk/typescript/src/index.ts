@@ -194,6 +194,7 @@ export class DorcClient {
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
         let errorCode: string | undefined
+        let errorDetail: string | undefined
 
         try {
           const errorBody = await response.json()
@@ -203,8 +204,23 @@ export class DorcClient {
           if (errorBody.error?.code) {
             errorCode = errorBody.error.code
           }
+          if (errorBody.detail) {
+            errorDetail = errorBody.detail
+          }
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'API error response',data:{method,path,status:response.status,errorMessage,errorCode,errorDetail},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
         } catch {
-          // If JSON parsing fails, use default error message
+          // If JSON parsing fails, try to get text
+          try {
+            const errorText = await response.text()
+            errorDetail = errorText.substring(0, 200)
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/_request',message:'API error response (text)',data:{method,path,status:response.status,errorText:errorText.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+          } catch {
+            // If text parsing also fails, use default error message
+          }
         }
 
         // Map status codes to error types
