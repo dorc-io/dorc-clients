@@ -310,7 +310,17 @@ export class DorcClient {
         id?: string
         status: string
         content: string
-        findings: string[]
+        findings?: string[]
+        message?: string
+        finding_count?: number
+        evidence?: Array<{
+          type?: string
+          summary?: string
+          candidate_quote?: string
+          canon_quote?: string
+          canon_quotes?: string[]
+          sources?: string[]
+        }>
         suggestions?: string[]
       }>
     }>('GET', `/v1/runs/${runId}/chunks`)
@@ -324,11 +334,47 @@ export class DorcClient {
         status = 'fail'
       }
 
+      // Extract findings from multiple sources:
+      // 1. Direct findings array (if present)
+      // 2. Message field (engine's primary finding message)
+      // 3. Evidence items (if they contain finding summaries)
+      const findings: string[] = []
+      
+      // Add direct findings array if present
+      if (chunk.findings && Array.isArray(chunk.findings)) {
+        findings.push(...chunk.findings.filter(f => f && f.trim().length > 0))
+      }
+      
+      // Add message as a finding if it exists and isn't already in findings
+      if (chunk.message && chunk.message.trim()) {
+        const message = chunk.message.trim()
+        // Only add if it's not a generic message and not already in findings
+        if (message && !findings.includes(message) && message !== 'pass' && message !== 'smoke') {
+          findings.push(message)
+        }
+      }
+      
+      // Extract findings from evidence items
+      if (chunk.evidence && Array.isArray(chunk.evidence)) {
+        for (const evidence of chunk.evidence) {
+          if (evidence.summary && evidence.summary.trim() && !findings.includes(evidence.summary.trim())) {
+            findings.push(evidence.summary.trim())
+          }
+          // Also check for contradiction details in evidence
+          if (evidence.type === 'contradiction' && evidence.candidate_quote && evidence.canon_quote) {
+            const contradictionMsg = `Contradiction found: "${evidence.candidate_quote}" conflicts with corpus: "${evidence.canon_quote}"`
+            if (!findings.includes(contradictionMsg)) {
+              findings.push(contradictionMsg)
+            }
+          }
+        }
+      }
+
       return {
         id: chunk.chunk_id || chunk.id || '',
         status,
-        content: chunk.content,
-        findings: chunk.findings || [],
+        content: chunk.content || '',
+        findings: findings.length > 0 ? findings : [],
         suggestions: chunk.suggestions,
       }
     })
@@ -562,6 +608,53 @@ export class DorcClient {
       model: response.model,
       usage: response.usage,
       thread_id: response.thread_id,
+    }
+  }
+
+  /**
+   * Create a document in the library
+   */
+  async createDocument(params: {
+    tenantSlug: string
+    title: string
+    content: string
+    docSlug?: string
+    folderPath?: string
+    validation?: {
+      runId: string
+      result: 'PASS' | 'WARN' | 'FAIL' | 'ERROR'
+    }
+  }): Promise<{ doc_slug: string; version: string }> {
+    const requestBody: any = {
+      title: params.title,
+      content: params.content,
+      content_type: 'text/markdown',
+    }
+
+    if (params.docSlug) {
+      requestBody.doc_slug = params.docSlug
+    }
+
+    if (params.folderPath) {
+      requestBody.folder_path = params.folderPath
+    }
+
+    if (params.validation) {
+      requestBody.validation = {
+        run_id: params.validation.runId,
+        result: params.validation.result,
+      }
+    }
+
+    const response = await this._request<{
+      tenant_slug: string
+      doc_slug: string
+      version: string
+    }>('POST', '/v1/library/docs', requestBody)
+
+    return {
+      doc_slug: response.doc_slug,
+      version: response.version,
     }
   }
 }
