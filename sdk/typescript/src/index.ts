@@ -377,6 +377,29 @@ export class DorcClient {
   }
 
   /**
+   * Update a corpus (tenant) name
+   */
+  async updateCorpus(slug: string, params: { name: string }): Promise<Corpus> {
+    await this._request('PUT', `/v1/corpora/${slug}`, {
+      name: params.name,
+    })
+
+    // Return updated corpus by fetching it
+    const corpus = await this.getCorpus(slug)
+    if (!corpus) {
+      throw new DorcError('Corpus not found after update', 404, 'NOT_FOUND')
+    }
+    return corpus
+  }
+
+  /**
+   * Delete a corpus (tenant)
+   */
+  async deleteCorpus(slug: string): Promise<void> {
+    await this._request('DELETE', `/v1/corpora/${slug}`)
+  }
+
+  /**
    * List all chat threads for a tenant
    */
   async listThreads(tenantSlug: string): Promise<Thread[]> {
@@ -433,6 +456,29 @@ export class DorcClient {
       updatedAt: new Date(response.updated_at * 1000),
       messageCount: response.message_count,
       tenantSlug: params.tenantSlug,
+    }
+  }
+
+  /**
+   * Update a chat thread's name
+   */
+  async updateThread(threadId: string, params: { name: string }): Promise<Thread> {
+    const response = await this._request<{
+      thread_id: string
+      name: string
+      created_at: number
+      updated_at: number
+      message_count: number
+    }>('PUT', `/v1/ai/threads/${threadId}`, {
+      name: params.name,
+    })
+
+    return {
+      id: response.thread_id,
+      name: response.name,
+      createdAt: new Date(response.created_at * 1000),
+      updatedAt: new Date(response.updated_at * 1000),
+      messageCount: response.message_count,
     }
   }
 
