@@ -268,7 +268,8 @@ export class DorcClient {
   async getRun(runId: string): Promise<ValidationRun> {
     const response = await this._request<{
       run_id: string
-      status: string
+      status?: string
+      pipeline_status?: string
       summary?: {
         pass: number
         warn: number
@@ -278,12 +279,16 @@ export class DorcClient {
     }>('GET', `/v1/runs/${runId}`)
 
     // Map API status to SDK status
+    // Engine returns pipeline_status: "COMPLETE", "RUNNING", etc.
+    // Also check for status field as fallback
+    const statusValue = response.pipeline_status || response.status || 'QUEUED'
     let status: 'queued' | 'running' | 'succeeded' | 'failed' = 'queued'
-    if (response.status === 'COMPLETED' || response.status === 'SUCCEEDED') {
+    
+    if (statusValue === 'COMPLETE' || statusValue === 'COMPLETED' || statusValue === 'SUCCEEDED' || statusValue === 'succeeded') {
       status = 'succeeded'
-    } else if (response.status === 'FAILED' || response.status === 'ERROR') {
+    } else if (statusValue === 'FAILED' || statusValue === 'ERROR' || statusValue === 'failed') {
       status = 'failed'
-    } else if (response.status === 'RUNNING' || response.status === 'PROCESSING') {
+    } else if (statusValue === 'RUNNING' || statusValue === 'PROCESSING' || statusValue === 'running') {
       status = 'running'
     }
 
