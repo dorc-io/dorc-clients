@@ -1,0 +1,183 @@
+# DORC Workspace Rules
+
+This workspace contains multiple repositories that together implement **DORC**  
+(Deterministic Orchestration of Rectified Canon).
+
+These rules are authoritative and must be followed by all code generated or modified in this workspace.
+
+---
+
+## Architecture Principles
+
+- BigQuery is the **ledger of validity**.
+  - All validation results must be written to BigQuery.
+  - BigQuery rows are the **evidence of record**, not LLM output or logs.
+
+- Validation is **one-time per run**.
+  - Never re-validate the same chunk for the same run.
+  - Never recompute validation during promotion.
+
+- Promotion **replays approved state** only.
+  - Promotion must read from BigQuery.
+  - Promotion must NOT re-parse files.
+  - Promotion must NOT call Gemini or any LLM.
+
+- Fail fast. No silent success.
+  - Any parsing error, missing data, API failure, or LLM failure must surface as an explicit failure.
+  - Never swallow errors or downgrade failures to “PASS by default”.
+
+- Determinism over convenience.
+  - Deterministic chunking, deterministic IDs, reproducible runs.
+  - LLMs may assist judgment, but must return structured, machine-readable output.
+
+- No repo may depend on another repo’s source code.
+  - All cross-repo coordination happens via BigQuery and explicit APIs only.
+
+
+---
+
+## Cloud-Only Deployment & Logging
+
+**CRITICAL: This entire project runs exclusively in Google Cloud. There is NO local testing or local development environment.**
+
+- **ALL services run in Google Cloud** (Cloud Run, Firebase Hosting, etc.)
+- **NEVER assume localhost or local development** - everything is deployed to cloud
+- **ALL debugging, logging, and instrumentation MUST use cloud-compatible methods**
+
+### Logging Requirements
+
+- **For JavaScript/TypeScript (Next.js, React, etc.):**
+  - Use console.log(), console.error(), console.warn() for all debugging output
+  - These logs are automatically captured by Google Cloud Logging / Firebase Logging
+  - Format logs as: console.log('[DEBUG]', JSON.stringify({...})) for structured logging
+  - **NEVER use localhost endpoints** (e.g., http://127.0.0.1:7242/...) - these will NOT work in cloud
+  - **NEVER use fetch() to localhost** for logging - use console methods only
+
+- **For Python services:**
+  - Use Google Cloud Logging client library: rom google.cloud import logging
+  - Or use standard Python logging module - logs are automatically captured by Cloud Run
+  - **NEVER write to local files** for logging - use cloud logging APIs
+
+- **For all languages:**
+  - All logs must be accessible via Google Cloud Console Logs Explorer
+  - Search for [DEBUG] prefix to find instrumentation logs
+  - Logs are collected automatically by the cloud platform - no manual log file collection needed
+
+### Debugging & Instrumentation
+
+- When adding debugging instrumentation:
+  1. Use cloud-compatible logging methods (console.log, Google Cloud Logging, etc.)
+  2. Structure logs with clear prefixes (e.g., [DEBUG], [ERROR], [INFO])
+  3. Include structured data in JSON format for easy querying
+  4. **NEVER** attempt to send logs to localhost endpoints
+  5. **NEVER** create local log files that need manual collection
+
+- To view logs:
+  - Use Google Cloud Console → Logs Explorer
+  - Use Firebase Console → Functions/Logs (for Firebase-hosted services)
+  - Search by log prefix, timestamp, or structured data fields
+
+### Testing & Development
+
+- All testing happens in cloud environments (staging/production)
+- There is no local development server or local testing environment
+- All changes must be deployed to cloud to be tested
+- Never assume code will run locally - it only runs in cloud
+---
+
+## Repository Boundaries
+
+Each repository has a strict responsibility boundary:
+
+- `dorc-infra`
+  - Infrastructure only.
+  - BigQuery schemas, IAM requirements, Cloud Build trigger specs.
+  - No application logic.
+
+- `dorc-engine`
+  - Runs on Pull Requests only.
+  - Parses canon markdown into atomic chunks.
+  - Calls Gemini for validation.
+  - Writes ALL results to BigQuery.
+  - Posts a report link back to the PR.
+  - Never promotes data to production.
+
+- `dorc-promoter`
+  - Runs on merge to main only.
+  - Reads approved chunks from BigQuery.
+  - Generates Atomic JSONL.
+  - Imports into Vertex AI RAG.
+  - Never re-parses files.
+  - Never calls Gemini or any LLM.
+
+- `dorc-rectifier`
+  - Phase 2 system.
+  - Reads failed validation runs from BigQuery.
+  - Generates proposed canon fixes (copy/paste safe by default).
+  - Never auto-merges or overwrites canon.
+
+- `dorc-reports`
+  - Documentation and human inspection only.
+  - Looker Studio report IDs, URLs, and filter contracts.
+  - No runtime or pipeline dependencies.
+
+---
+
+## LLM Usage Rules
+
+- LLMs are allowed ONLY where explicitly intended (e.g., `dorc-engine`, `dorc-rectifier`).
+- LLMs must return **strict structured output** (e.g., JSON).
+- No free-form prose as control signals.
+- LLM output must always be persisted to BigQuery when it influences system state.
+
+---
+
+## Code Style & Quality
+
+- Use Python type hints.
+- Keep modules small and single-purpose.
+- Write tests for deterministic components (chunking, ID generation, schema mapping).
+- Document contracts and interfaces explicitly (especially BigQuery row contracts).
+
+---
+
+## Cleanup & Artifact Management
+
+- **ALWAYS clean up compiled Python files (`.pyc` files) after completing any task.**
+  - Any file that ends in `.pyc` must be deleted immediately after it is created or after the task is complete.
+  - Delete all `.pyc` files and `__pycache__/` directories before completing any task.
+  - This is a **mandatory cleanup step** that must be performed at the end of every task.
+  
+- **Always clean up compiled artifacts and temporary files** after running code or tests.
+  - Delete all `.pyc` files and `__pycache__/` directories before committing.
+  - Remove any temporary test files, log files, or build artifacts created during development.
+  - Never commit compiled Python bytecode (`.pyc` files) or cache directories.
+  - If you run code that generates artifacts, clean them up immediately after.
+  
+- **Before completing any task**, verify no compiled artifacts or temporary files remain in the repository.
+  - Run cleanup commands to remove all `.pyc` files: `find . -name "*.pyc" -delete` or equivalent.
+  - Remove `__pycache__/` directories: `find . -type d -name "__pycache__" -exec rm -r {} +` or equivalent.
+
+---
+
+## Speech-to-Text Normalization
+
+- In this workspace context:
+  - “DORK” must always be interpreted as **DORC**.
+  - Repo names must use dash-separated form (e.g., `dorc-engine`).
+
+---
+
+## When Making Changes
+
+- Always verify which repository you are working in.
+- Respect repository boundaries — do not introduce cross-repo source dependencies.
+- Any BigQuery schema change must be made in `dorc-infra/bq/` first.
+- Follow the flow:
+  **validation → promotion → rectification**
+- Human-facing output should prefer links and reports over inline text dumps.
+
+---
+
+These rules exist to preserve determinism, auditability, and long-term correctness.
+
