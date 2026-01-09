@@ -117,6 +117,23 @@ export interface DashboardMetrics {
   metering_by_event_type?: Record<string, number>
 }
 
+export interface LibraryListDoc {
+  doc_slug: string
+  latest_version?: string | null
+  manifest_path?: string | null
+  folder_path?: string | null
+}
+
+export interface LibraryGetDocResponse {
+  tenant_slug: string
+  doc_slug: string
+  version: string
+  versions: string[]
+  folder_path?: string | null
+  manifest: any
+  source?: string
+}
+
 export class DorcClient {
   private apiUrl: string
   private token: string | null = null
@@ -687,5 +704,79 @@ export class DorcClient {
       doc_slug: response.doc_slug,
       version: response.version,
     }
+  }
+
+  /**
+   * List library documents.
+   *
+   * dorc-api returns: { tenant_slug, documents: [...], cursor }
+   */
+  async listLibraryDocs(params: {
+    tenantSlug: string
+    folderPath?: string
+    q?: string
+    limit?: number
+  }): Promise<LibraryListDoc[]> {
+    const query: Record<string, string> = {}
+    if (params.folderPath) query.folder_path = params.folderPath
+    if (params.q) query.q = params.q
+    if (params.limit) query.limit = String(params.limit)
+
+    const response = await this._request<{
+      tenant_slug: string
+      documents: LibraryListDoc[]
+      cursor?: string | null
+    }>('GET', '/v1/library/docs', undefined, query)
+
+    return response.documents || []
+  }
+
+  /**
+   * Get a library document by slug.
+   *
+   * dorc-api returns: { tenant_slug, doc_slug, version, manifest, versions, folder_path, source? }
+   */
+  async getLibraryDoc(params: {
+    tenantSlug: string
+    docSlug: string
+    includeContent?: boolean
+    folderPath?: string
+  }): Promise<LibraryGetDocResponse> {
+    const query: Record<string, string> = {}
+    if (params.includeContent) query.include_content = 'true'
+    if (params.folderPath) query.folder_path = params.folderPath
+
+    return await this._request<LibraryGetDocResponse>(
+      'GET',
+      `/v1/library/docs/${params.docSlug}`,
+      undefined,
+      query
+    )
+  }
+
+  /**
+   * Commit a new version of an existing library doc.
+   */
+  async commitDocument(params: {
+    tenantSlug: string
+    docSlug: string
+    title: string
+    content: string
+    folderPath?: string
+  }): Promise<{ tenant_slug: string; doc_slug: string; version: string }> {
+    const body: any = {
+      title: params.title,
+      content: params.content,
+      content_type: 'text/markdown',
+    }
+    if (params.folderPath) body.folder_path = params.folderPath
+
+    const response = await this._request<{
+      tenant_slug: string
+      doc_slug: string
+      version: string
+    }>('POST', `/v1/library/docs/${params.docSlug}/commit`, body)
+
+    return response
   }
 }
