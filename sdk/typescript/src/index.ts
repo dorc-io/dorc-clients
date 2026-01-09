@@ -107,6 +107,14 @@ export interface ChatResponse {
   thread_id?: string
 }
 
+export interface DashboardMetrics {
+  tenant_slug: string
+  corpus_docs_count: number
+  drafts_count: number
+  validation_runs: number
+  metering_by_event_type?: Record<string, number>
+}
+
 export class DorcClient {
   private apiUrl: string
   private token: string | null = null
@@ -612,6 +620,13 @@ export class DorcClient {
   }
 
   /**
+   * Dashboard metrics (BigQuery ledger)
+   */
+  async getDashboardMetrics(): Promise<DashboardMetrics> {
+    return await this._request<DashboardMetrics>('GET', '/v1/dashboard/metrics')
+  }
+
+  /**
    * Create a document in the library
    */
   async createDocument(params: {
@@ -625,9 +640,6 @@ export class DorcClient {
       result: 'PASS' | 'WARN' | 'FAIL' | 'ERROR'
     }
   }): Promise<{ doc_slug: string; version: string }> {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:617',message:'createDocument SDK call starting',data:{tenantSlug:params.tenantSlug,folderPath:params.folderPath||'undefined',hasValidation:!!params.validation,contentLength:params.content.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     const requestBody: any = {
       title: params.title,
       content: params.content,
@@ -649,18 +661,12 @@ export class DorcClient {
       }
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:653',message:'About to call API',data:{endpoint:'/v1/library/docs',hasFolderPath:!!requestBody.folder_path,folderPath:requestBody.folder_path||'null'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     const response = await this._request<{
       tenant_slug: string
       doc_slug: string
       version: string
     }>('POST', '/v1/library/docs', requestBody)
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d115584a-c16f-4404-8336-0f1c1969e079',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:660',message:'createDocument API response received',data:{doc_slug:response.doc_slug,version:response.version},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     return {
       doc_slug: response.doc_slug,
       version: response.version,
