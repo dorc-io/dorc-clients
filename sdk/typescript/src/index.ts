@@ -62,6 +62,8 @@ export interface Corpus {
   id: string
   slug: string
   name: string
+  description?: string
+  profile?: string
   createdAt: Date
 }
 
@@ -397,6 +399,8 @@ export class DorcClient {
         tenant_slug: string
         created_at?: number
         name?: string
+        description?: string
+        profile?: string
       }>
     }>('GET', '/v1/corpora')
 
@@ -404,6 +408,8 @@ export class DorcClient {
       id: tenant.tenant_slug,
       slug: tenant.tenant_slug,
       name: tenant.name || tenant.tenant_slug,
+      description: tenant.description,
+      profile: tenant.profile,
       createdAt: tenant.created_at ? new Date(tenant.created_at * 1000) : new Date(),
     }))
   }
@@ -419,28 +425,38 @@ export class DorcClient {
   /**
    * Create a new corpus (tenant)
    */
-  async createCorpus(params: { slug: string; name?: string }): Promise<Corpus> {
+  async createCorpus(params: { slug: string; name?: string; description?: string; profile?: string }): Promise<Corpus> {
     const response = await this._request<{
       tenant_slug: string
       created_at: number
+      name?: string
+      description?: string
+      profile?: string
     }>('POST', '/v1/corpora', {
       tenant_slug: params.slug,
+      name: params.name,
+      description: params.description,
+      profile: params.profile,
     })
 
     return {
       id: response.tenant_slug,
       slug: response.tenant_slug,
-      name: params.name || response.tenant_slug,
+      name: response.name || params.name || response.tenant_slug,
+      description: response.description || params.description,
+      profile: response.profile || params.profile,
       createdAt: new Date(response.created_at * 1000),
     }
   }
 
   /**
-   * Update a corpus (tenant) name
+   * Update a corpus (tenant) metadata
    */
-  async updateCorpus(slug: string, params: { name: string }): Promise<Corpus> {
+  async updateCorpus(slug: string, params: { name?: string; description?: string; profile?: string }): Promise<Corpus> {
     await this._request('PUT', `/v1/corpora/${slug}`, {
       name: params.name,
+      description: params.description,
+      profile: params.profile,
     })
 
     // Return updated corpus by fetching it
