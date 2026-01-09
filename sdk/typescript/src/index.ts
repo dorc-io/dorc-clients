@@ -74,6 +74,7 @@ export interface Thread {
   updatedAt: Date
   messageCount: number
   tenantSlug?: string
+  sessionType?: 'forge' | 'draft'
 }
 
 export interface ThreadMessage {
@@ -502,6 +503,7 @@ export class DorcClient {
         created_at: number
         updated_at: number
         message_count: number
+        session_type?: 'forge' | 'draft'
       }>
     }>('GET', '/v1/ai/threads', undefined, {
       tenant_slug: tenantSlug,
@@ -514,6 +516,7 @@ export class DorcClient {
       updatedAt: new Date(thread.updated_at * 1000),
       messageCount: thread.message_count,
       tenantSlug,
+      sessionType: thread.session_type,
     }))
   }
 
@@ -529,16 +532,18 @@ export class DorcClient {
   /**
    * Create a new chat thread
    */
-  async createThread(params: { tenantSlug: string; name: string }): Promise<Thread> {
+  async createThread(params: { tenantSlug: string; name: string; sessionType?: 'forge' | 'draft' }): Promise<Thread> {
     const response = await this._request<{
       thread_id: string
       name: string
       created_at: number
       updated_at: number
       message_count: number
+      session_type?: 'forge' | 'draft'
     }>('POST', '/v1/ai/threads', {
       tenant_slug: params.tenantSlug,
       name: params.name,
+      session_type: params.sessionType,
     })
 
     return {
@@ -548,6 +553,7 @@ export class DorcClient {
       updatedAt: new Date(response.updated_at * 1000),
       messageCount: response.message_count,
       tenantSlug: params.tenantSlug,
+      sessionType: response.session_type,
     }
   }
 
