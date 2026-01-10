@@ -54,8 +54,14 @@ export interface ValidationChunk {
   id: string
   status: 'pass' | 'warn' | 'fail'
   content: string
+  /**
+   * Optional excerpt from the candidate content that is directly tied to the finding.
+   * When present, the UI can use this as a stable highlight/mapping anchor.
+   */
+  candidate_quote?: string
   findings: string[]
   suggestions?: string[]
+  chunk_index?: number
 }
 
 export interface Corpus {
@@ -161,11 +167,11 @@ export class DorcClient {
     queryParams?: Record<string, string>
   ): Promise<T> {
     // #region agent log
-    fetch(`${this.apiUrl}/v1/debug/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:135',message:'_request: called',data:{method,path,hasToken:!!this.token,tokenLength:this.token?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    fetch(`${this.apiUrl}/v1/debug/log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'sdk/index.ts:135', message: '_request: called', data: { method, path, hasToken: !!this.token, tokenLength: this.token?.length || 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
     // #endregion
     if (!this.token) {
       // #region agent log
-      fetch(`${this.apiUrl}/v1/debug/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:137',message:'_request: no token error',data:{method,path},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      fetch(`${this.apiUrl}/v1/debug/log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'sdk/index.ts:137', message: '_request: no token error', data: { method, path }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
       // #endregion
       throw new DorcError('Authentication token is required. Call setToken() first.', 401, 'AUTH_REQUIRED')
     }
@@ -193,11 +199,11 @@ export class DorcClient {
 
     try {
       // #region agent log
-      fetch(`${this.apiUrl}/v1/debug/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:161',message:'_request: making fetch',data:{method,url:url.toString(),hasToken:!!this.token,tokenLength:this.token?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      fetch(`${this.apiUrl}/v1/debug/log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'sdk/index.ts:161', message: '_request: making fetch', data: { method, url: url.toString(), hasToken: !!this.token, tokenLength: this.token?.length || 0 }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
       // #endregion
       const response = await fetch(url.toString(), options)
       // #region agent log
-      fetch(`${this.apiUrl}/v1/debug/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sdk/index.ts:163',message:'_request: got response',data:{method,path,status:response.status,statusText:response.statusText,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      fetch(`${this.apiUrl}/v1/debug/log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'sdk/index.ts:163', message: '_request: got response', data: { method, path, status: response.status, statusText: response.statusText, ok: response.ok }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'D' }) }).catch(() => { });
       // #endregion
 
       // Handle error responses
@@ -311,7 +317,7 @@ export class DorcClient {
     // Also check for status field as fallback
     const statusValue = response.pipeline_status || response.status || 'QUEUED'
     let status: 'queued' | 'running' | 'succeeded' | 'failed' = 'queued'
-    
+
     if (statusValue === 'COMPLETE' || statusValue === 'COMPLETED' || statusValue === 'SUCCEEDED' || statusValue === 'succeeded') {
       status = 'succeeded'
     } else if (statusValue === 'FAILED' || statusValue === 'ERROR' || statusValue === 'failed') {
@@ -367,12 +373,12 @@ export class DorcClient {
       // 2. Message field (engine's primary finding message)
       // 3. Evidence items (if they contain finding summaries)
       const findings: string[] = []
-      
+
       // Add direct findings array if present
       if (chunk.findings && Array.isArray(chunk.findings)) {
         findings.push(...chunk.findings.filter(f => f && f.trim().length > 0))
       }
-      
+
       // Add message as a finding if it exists and isn't already in findings
       if (chunk.message && chunk.message.trim()) {
         const message = chunk.message.trim()
@@ -381,10 +387,14 @@ export class DorcClient {
           findings.push(message)
         }
       }
-      
+
       // Extract findings from evidence items
+      let candidateQuote: string | undefined = undefined
       if (chunk.evidence && Array.isArray(chunk.evidence)) {
         for (const evidence of chunk.evidence) {
+          if (!candidateQuote && evidence.candidate_quote && evidence.candidate_quote.trim()) {
+            candidateQuote = evidence.candidate_quote.trim()
+          }
           if (evidence.summary && evidence.summary.trim() && !findings.includes(evidence.summary.trim())) {
             findings.push(evidence.summary.trim())
           }
@@ -402,8 +412,10 @@ export class DorcClient {
         id: chunk.chunk_id || chunk.id || '',
         status,
         content: chunk.content || '',
+        candidate_quote: candidateQuote,
         findings: findings.length > 0 ? findings : [],
         suggestions: chunk.suggestions,
+        chunk_index: (chunk as any).index,
       }
     })
   }
